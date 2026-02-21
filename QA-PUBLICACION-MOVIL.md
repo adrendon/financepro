@@ -1,6 +1,6 @@
 # QA de Publicación (Móvil)
 
-Fecha: 2026-02-20
+Fecha: 2026-02-21
 Alcance: validación final visual/funcional para 320px, 375px y 390px.
 
 ## 1) Estado técnico actual
