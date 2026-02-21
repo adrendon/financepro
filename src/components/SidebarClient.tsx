@@ -88,7 +88,7 @@ export function SidebarClient({ initialProfile }: { initialProfile: SidebarProfi
 
   const linkClass = (href: string) => {
     const isActive = pathname === href;
-    return `flex items-center ${collapsed ? "justify-center" : "gap-3"} px-3 py-2 rounded-lg transition-colors ${
+    return `flex items-center ${collapsed ? "justify-center" : "gap-3"} px-3 py-1.5 md:py-2 rounded-lg transition-colors ${
       isActive
         ? "bg-primary/10 text-primary font-medium"
         : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -99,8 +99,8 @@ export function SidebarClient({ initialProfile }: { initialProfile: SidebarProfi
     <>
       <NotificationCenter />
 
-      <aside className={`h-screen border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col shrink-0 transition-all duration-300 ${collapsed ? "w-24" : "w-64"}`}>
-        <div className="p-6 flex items-center gap-3">
+      <aside className={`h-[100dvh] border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col shrink-0 transition-all duration-300 ${collapsed ? "w-24" : "w-64"}`}>
+        <div className="p-4 md:p-6 flex items-center gap-3">
           <div className={`flex items-center justify-between w-full ${collapsed ? "gap-0" : "gap-3"}`}>
             <button
               type="button"
@@ -128,7 +128,7 @@ export function SidebarClient({ initialProfile }: { initialProfile: SidebarProfi
           </div>
         </div>
 
-        <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 md:px-4 space-y-1 overflow-y-auto">
           {[
             ...navItems,
             ...(profile?.role === "admin" ? [{ href: "/roles", label: "Roles", icon: ShieldCheck }] : []),
@@ -146,7 +146,7 @@ export function SidebarClient({ initialProfile }: { initialProfile: SidebarProfi
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900">
+        <div className="p-2 md:p-4 border-t border-slate-200 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900">
           <Link href="/perfil" className={linkClass("/perfil") + " mb-2"}>
             <User className="w-5 h-5" />
             {!collapsed && !isMobile ? "Perfil" : null}
@@ -167,16 +167,16 @@ export function SidebarClient({ initialProfile }: { initialProfile: SidebarProfi
               <ThemeToggle />
             </div>
           ) : (
-            <div className="mb-4 flex justify-center">
+            <div className="mb-2 md:mb-4 flex justify-center">
               <ThemeToggle compact />
             </div>
           )}
 
-          <div className={`flex items-center ${collapsed ? "justify-center" : "gap-3"} p-2`}>
+          <div className={`flex items-center ${collapsed ? "justify-center" : "gap-3"} p-1.5 md:p-2`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               alt="User Profile"
-              className="w-10 h-10 rounded-full bg-slate-200 object-cover"
+              className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-slate-200 object-cover"
               src={profile?.avatar_url || "https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=200&h=200&fit=crop"}
             />
             {!collapsed && !isMobile ? (
