@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ThemeToggle } from "./ThemeToggle";
 import LogoutButton from "./LogoutButton";
 import { roleLabel, tierLabel } from "@/utils/formatters";
@@ -35,12 +35,30 @@ export type SidebarProfile = {
 export function SidebarClient({ initialProfile }: { initialProfile: SidebarProfile | null }) {
   const pathname = usePathname();
   const profile = initialProfile;
+  const [isMobile, setIsMobile] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("financepro.sidebar.collapsed") === "1";
   });
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mediaQuery = window.matchMedia("(max-width: 768px)");
+    const apply = () => {
+      const mobile = mediaQuery.matches;
+      setIsMobile(mobile);
+      if (mobile) {
+        setCollapsed(true);
+      }
+    };
+
+    apply();
+    mediaQuery.addEventListener("change", apply);
+    return () => mediaQuery.removeEventListener("change", apply);
+  }, []);
+
   const toggleSidebar = () => {
+    if (isMobile) return;
     setCollapsed((prev) => {
       const next = !prev;
       window.localStorage.setItem("financepro.sidebar.collapsed", next ? "1" : "0");
@@ -63,16 +81,10 @@ export function SidebarClient({ initialProfile }: { initialProfile: SidebarProfi
   const displayName =
     profile?.full_name?.trim() || profile?.email?.split("@")[0] || "Usuario";
   const displayRole = `${roleLabel(profile?.role)} ${tierLabel(profile?.subscription_tier)}`;
-  const isFreeUser = profile?.role !== "admin" && (profile?.subscription_tier ?? "free") === "free";
   const canManageSubscription =
     profile?.role === "admin" ||
     profile?.subscription_tier === "pro" ||
     profile?.subscription_tier === "premium";
-
-  const visibleNavItems = navItems.filter((item) => {
-    if (!isFreeUser) return true;
-    return item.href !== "/transacciones" && item.href !== "/inversiones";
-  });
 
   const linkClass = (href: string) => {
     const isActive = pathname === href;
@@ -87,16 +99,13 @@ export function SidebarClient({ initialProfile }: { initialProfile: SidebarProfi
     <>
       <NotificationCenter />
 
-      <aside
-        className={`h-screen border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col shrink-0 transition-all duration-300 ${
-          collapsed ? "w-20" : "w-64"
-        }`}
-      >
+      <aside className={`h-screen border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col shrink-0 transition-all duration-300 ${collapsed ? "w-16 md:w-20" : "w-64"}`}>
         <div className="p-6 flex items-center gap-3">
           <div className={`flex items-center justify-between w-full ${collapsed ? "gap-0" : "gap-3"}`}>
             <button
               type="button"
               onClick={toggleSidebar}
+              disabled={isMobile}
               className={`flex items-center ${collapsed ? "justify-center w-full" : "gap-3 min-w-0"}`}
               title={collapsed ? "Expandir panel" : "Contraer panel"}
               aria-label={collapsed ? "Expandir panel" : "Contraer panel"}
@@ -115,13 +124,13 @@ export function SidebarClient({ initialProfile }: { initialProfile: SidebarProfi
               ) : null}
             </button>
 
-            {!collapsed ? <LogoutButton compact /> : null}
+            {!collapsed && !isMobile ? <LogoutButton compact /> : null}
           </div>
         </div>
 
         <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
           {[
-            ...visibleNavItems,
+            ...navItems,
             ...(profile?.role === "admin" ? [{ href: "/roles", label: "Roles", icon: ShieldCheck }] : []),
             ...(profile?.role === "admin"
               ? [{ href: "/admin/suscripciones", label: "Suscripciones", icon: CreditCard }]
@@ -131,7 +140,7 @@ export function SidebarClient({ initialProfile }: { initialProfile: SidebarProfi
             return (
               <Link key={item.href} href={item.href} className={linkClass(item.href)}>
                 <Icon className="w-5 h-5" />
-                {!collapsed ? item.label : null}
+                {!collapsed && !isMobile ? item.label : null}
               </Link>
             );
           })}
@@ -140,20 +149,20 @@ export function SidebarClient({ initialProfile }: { initialProfile: SidebarProfi
         <div className="p-4 border-t border-slate-200 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900">
           <Link href="/perfil" className={linkClass("/perfil") + " mb-2"}>
             <User className="w-5 h-5" />
-            {!collapsed ? "Perfil" : null}
+            {!collapsed && !isMobile ? "Perfil" : null}
           </Link>
           <Link href="/configuracion" className={linkClass("/configuracion") + " mb-2"}>
             <Settings className="w-5 h-5" />
-            {!collapsed ? "Configuración" : null}
+            {!collapsed && !isMobile ? "Configuración" : null}
           </Link>
           {canManageSubscription ? (
             <Link href="/suscripcion" className={linkClass("/suscripcion") + " mb-2"}>
               <CreditCard className="w-5 h-5" />
-              {!collapsed ? "Suscripción" : null}
+              {!collapsed && !isMobile ? "Suscripción" : null}
             </Link>
           ) : null}
 
-          {!collapsed ? (
+          {!collapsed && !isMobile ? (
             <div className="mb-4">
               <ThemeToggle />
             </div>
@@ -170,7 +179,7 @@ export function SidebarClient({ initialProfile }: { initialProfile: SidebarProfi
               className="w-10 h-10 rounded-full bg-slate-200 object-cover"
               src={profile?.avatar_url || "https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=200&h=200&fit=crop"}
             />
-            {!collapsed ? (
+            {!collapsed && !isMobile ? (
               <div className="overflow-hidden">
                 <p className="text-sm font-medium truncate">{displayName}</p>
                 <p className="text-xs text-slate-500 truncate">{displayRole}</p>

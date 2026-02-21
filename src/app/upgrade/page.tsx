@@ -5,6 +5,7 @@ import { Gem, ShieldCheck } from "lucide-react";
 const featureLabels: Record<string, string> = {
   transactions: "Transacciones",
   investments: "Inversiones",
+  reports: "Informes",
 };
 
 export default async function UpgradePage({
@@ -33,7 +34,7 @@ export default async function UpgradePage({
 
             <h1 className="text-3xl font-black tracking-tight mb-3">Función premium</h1>
             <p className="text-slate-600 dark:text-slate-300 mb-6">
-              La sección <span className="font-bold">{featureLabel}</span> está disponible para planes <span className="font-bold">Pro/Premium</span> o para usuarios <span className="font-bold">Admin</span>.
+              La sección <span className="font-bold">{featureLabel}</span> está disponible para el plan <span className="font-bold">Premium</span> o para usuarios <span className="font-bold">Admin</span>.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8">
@@ -43,7 +44,7 @@ export default async function UpgradePage({
               </div>
               <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 bg-slate-50 dark:bg-slate-800/40">
                 <p className="text-sm text-slate-500 mb-1">Acceso</p>
-                <p className="font-semibold">Transacciones e Inversiones</p>
+                <p className="font-semibold">Informes avanzados</p>
               </div>
             </div>
 

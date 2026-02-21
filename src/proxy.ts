@@ -51,8 +51,7 @@ export async function proxy(request: NextRequest) {
   const needsProfileCheck =
     pathname.startsWith("/roles") ||
     pathname.startsWith("/admin") ||
-    pathname.startsWith("/transacciones") ||
-    pathname.startsWith("/inversiones");
+    pathname.startsWith("/informes");
 
   let profile: { role: string | null; subscription_tier: string | null } | null = null;
   if (user && needsProfileCheck) {
@@ -73,13 +72,12 @@ export async function proxy(request: NextRequest) {
 
   if (
     user &&
-    (pathname.startsWith("/transacciones") || pathname.startsWith("/inversiones")) &&
+    pathname.startsWith("/informes") &&
     profile?.role !== "admin" &&
-    profile?.subscription_tier === "free"
+    profile?.subscription_tier !== "premium"
   ) {
-    const feature = pathname.startsWith("/inversiones") ? "investments" : "transactions";
     const upgradeUrl = new URL("/upgrade", request.url);
-    upgradeUrl.searchParams.set("feature", feature);
+    upgradeUrl.searchParams.set("feature", "reports");
     return NextResponse.redirect(upgradeUrl);
   }
 

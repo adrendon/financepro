@@ -165,15 +165,15 @@ export default function InvestmentsManager({ initialItems }: { initialItems: Inv
           <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">Inversiones</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-2">Gestiona tus posiciones y rendimiento actual.</p>
         </div>
-        <button onClick={openCreate} className="px-4 py-2.5 bg-primary text-white rounded-xl font-bold flex items-center gap-2">
+        <button onClick={openCreate} className="w-full sm:w-auto justify-center px-4 py-2.5 bg-primary text-white rounded-xl font-bold flex items-center gap-2">
           <PlusCircle className="w-5 h-5" /> Nueva inversión
         </button>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="p-4 rounded-xl border bg-white dark:bg-slate-900"><p className="text-xs text-slate-500">Invertido</p><p className="text-2xl font-black">{formatCurrencyCOP(summary.invested)}</p></div>
-        <div className="p-4 rounded-xl border bg-white dark:bg-slate-900"><p className="text-xs text-slate-500">Valor actual</p><p className="text-2xl font-black">{formatCurrencyCOP(summary.current)}</p></div>
-        <div className="p-4 rounded-xl border bg-white dark:bg-slate-900"><p className="text-xs text-slate-500">Ganancia/Pérdida</p><p className={`text-2xl font-black ${summary.pnl >= 0 ? "text-emerald-600" : "text-rose-600"}`}>{summary.pnl >= 0 ? "+" : "-"}{formatCurrencyCOP(Math.abs(summary.pnl))}</p></div>
+        <div className="p-4 rounded-xl border bg-white dark:bg-slate-900"><p className="text-xs text-slate-500">Invertido</p><p className="text-xl sm:text-2xl leading-tight break-all font-black">{formatCurrencyCOP(summary.invested)}</p></div>
+        <div className="p-4 rounded-xl border bg-white dark:bg-slate-900"><p className="text-xs text-slate-500">Valor actual</p><p className="text-xl sm:text-2xl leading-tight break-all font-black">{formatCurrencyCOP(summary.current)}</p></div>
+        <div className="p-4 rounded-xl border bg-white dark:bg-slate-900"><p className="text-xs text-slate-500">Ganancia/Pérdida</p><p className={`text-xl sm:text-2xl leading-tight break-all font-black ${summary.pnl >= 0 ? "text-emerald-600" : "text-rose-600"}`}>{summary.pnl >= 0 ? "+" : "-"}{formatCurrencyCOP(Math.abs(summary.pnl))}</p></div>
       </div>
 
       <section className="mb-8 p-6 rounded-2xl border bg-white dark:bg-slate-900">
@@ -199,11 +199,11 @@ export default function InvestmentsManager({ initialItems }: { initialItems: Inv
           return (
             <div key={item.id} className="bg-white dark:bg-slate-900 rounded-xl border p-4">
               <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={item.image_url || DEFAULT_PANEL_IMAGE} alt={item.name} className="w-14 h-14 rounded-lg object-cover" />
-                  <div>
-                    <p className="font-bold">{item.name}</p>
+                  <div className="min-w-0">
+                    <p className="font-bold break-words">{item.name}</p>
                     <p className="text-sm text-slate-500">{item.investment_type}</p>
                   </div>
                 </div>
@@ -222,7 +222,7 @@ export default function InvestmentsManager({ initialItems }: { initialItems: Inv
                 {pnl >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                 {pnl >= 0 ? "+" : "-"}{formatCurrencyCOP(Math.abs(pnl))}
               </div>
-              {item.notes && <p className="mt-2 text-sm text-slate-500">{item.notes}</p>}
+              {item.notes && <p className="mt-2 text-sm text-slate-500 break-words">{item.notes}</p>}
             </div>
           );
         })}
@@ -230,7 +230,7 @@ export default function InvestmentsManager({ initialItems }: { initialItems: Inv
 
       {isOpen && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <form onSubmit={save} className="w-full max-w-xl rounded-xl border bg-white dark:bg-slate-900 p-6 space-y-4">
+          <form onSubmit={save} className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-xl border bg-white dark:bg-slate-900 p-6 space-y-4">
             <h3 className="text-xl font-bold">{editing ? "Editar inversión" : "Nueva inversión"}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <input required value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} placeholder="Nombre" className="px-3 py-2 rounded-lg border bg-slate-50 dark:bg-slate-800" />

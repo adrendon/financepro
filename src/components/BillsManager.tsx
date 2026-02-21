@@ -171,9 +171,9 @@ export default function BillsManager({
           <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">Facturas</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-2">Gestiona facturas, estados y vencimientos.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => exportToCSV(rows, "facturas.csv")} className="px-3 py-2 rounded-xl border text-sm font-bold flex items-center gap-2"><Download className="w-4 h-4" /> CSV</button>
-          <button onClick={openCreate} className="px-4 py-2.5 bg-primary text-white rounded-xl font-bold flex items-center gap-2"><PlusCircle className="w-5 h-5" /> Nueva factura</button>
+        <div className="w-full md:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <button onClick={() => exportToCSV(rows, "facturas.csv")} className="justify-center px-3 py-2 rounded-xl border text-sm font-bold flex items-center gap-2"><Download className="w-4 h-4" /> CSV</button>
+          <button onClick={openCreate} className="justify-center px-4 py-2.5 bg-primary text-white rounded-xl font-bold flex items-center gap-2"><PlusCircle className="w-5 h-5" /> Nueva factura</button>
         </div>
       </header>
 
@@ -265,7 +265,7 @@ export default function BillsManager({
 
       {open && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <form onSubmit={save} className="w-full max-w-lg rounded-xl border bg-white dark:bg-slate-900 p-6 space-y-4">
+          <form onSubmit={save} className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl border bg-white dark:bg-slate-900 p-6 space-y-4">
             <h3 className="text-xl font-bold">{editing ? "Editar factura" : "Nueva factura"}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <input required value={form.title} onChange={(e) => setForm((s) => ({ ...s, title: e.target.value }))} placeholder="Título" className="px-3 py-2 rounded-lg border bg-slate-50 dark:bg-slate-800 md:col-span-2" />

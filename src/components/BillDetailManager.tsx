@@ -181,14 +181,14 @@ export default function BillDetailManager({
           </div>
           <h1 className="text-3xl font-black text-slate-900 dark:text-white">Detalle de factura</h1>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => setEditing(true)} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 font-semibold">
+        <div className="w-full md:w-auto grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <button onClick={() => setEditing(true)} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 font-semibold">
             <Pencil className="w-4 h-4" /> Editar factura
           </button>
-          <button onClick={() => setConfirmPay(true)} disabled={saving} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-white font-semibold disabled:opacity-50">
+          <button onClick={() => setConfirmPay(true)} disabled={saving} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-white font-semibold disabled:opacity-50">
             <CreditCard className="w-4 h-4" /> Pagar ahora
           </button>
-          <button onClick={() => setConfirmDelete(true)} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-rose-600 text-white font-semibold">
+          <button onClick={() => setConfirmDelete(true)} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-rose-600 text-white font-semibold">
             <Trash2 className="w-4 h-4" /> Eliminar
           </button>
         </div>
@@ -196,13 +196,13 @@ export default function BillDetailManager({
 
       <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{bill.title}</h2>
+          <div className="min-w-0">
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white break-words">{bill.title}</h2>
             <p className="text-slate-500">{bill.description || "Sin descripción"}</p>
           </div>
-          <div className="text-right">
+          <div className="text-left md:text-right">
             <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold uppercase ${statusPillClass}`}>{bill.status}</span>
-            <div className="text-3xl font-black text-slate-900 dark:text-white mt-2">{formatCurrencyCOP(Number(bill.amount) || 0)}</div>
+            <div className="text-2xl md:text-3xl leading-tight break-all font-black text-slate-900 dark:text-white mt-2">{formatCurrencyCOP(Number(bill.amount) || 0)}</div>
           </div>
         </div>
         <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
@@ -235,7 +235,7 @@ export default function BillDetailManager({
 
       {editing ? (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <form onSubmit={saveChanges} className="w-full max-w-lg rounded-xl border bg-white dark:bg-slate-900 p-6 space-y-4">
+          <form onSubmit={saveChanges} className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl border bg-white dark:bg-slate-900 p-6 space-y-4">
             <h3 className="text-xl font-bold">Editar factura</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <input required value={form.title} onChange={(e) => setForm((s) => ({ ...s, title: e.target.value }))} placeholder="Título" className="px-3 py-2 rounded-lg border bg-slate-50 dark:bg-slate-800 md:col-span-2" />

@@ -213,6 +213,13 @@ export default function LoginPage() {
           typeof window !== "undefined"
             ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`
             : undefined,
+        ...(provider === "github"
+          ? {
+              queryParams: {
+                scope: "read:user user:email",
+              },
+            }
+          : {}),
       },
     });
 

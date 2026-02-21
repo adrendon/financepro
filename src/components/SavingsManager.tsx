@@ -461,22 +461,22 @@ export default function SavingsManager({
           <p className="text-slate-500 dark:text-slate-400">Visualiza metas, crea nuevas y registra aportaciones.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button onClick={() => exportToCSV(contributionRows, "historial-aportaciones.csv")} className="px-4 h-12 border rounded-lg font-bold flex items-center gap-2">
+          <button onClick={() => exportToCSV(contributionRows, "historial-aportaciones.csv")} className="w-full sm:w-auto justify-center px-4 h-12 border rounded-lg font-bold flex items-center gap-2">
             <Download className="w-4 h-4" /> Exportar historial
           </button>
-          <button onClick={openCreateGoal} className="flex items-center justify-center gap-2 px-6 h-12 bg-primary hover:bg-primary/90 text-white rounded-lg font-bold">
+          <button onClick={openCreateGoal} className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 h-12 bg-primary hover:bg-primary/90 text-white rounded-lg font-bold">
             <PlusCircle className="w-5 h-5" /> Nueva Meta
           </button>
         </div>
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-        <div className="p-6 rounded-xl bg-white dark:bg-slate-800 border"><p className="text-sm text-slate-500">Ahorro Total</p><p className="text-3xl font-bold">{formatCurrencyCOP(summary.totalSavings)}</p><div className="flex items-center gap-1 text-emerald-500"><PiggyBank className="w-4 h-4" /><p className="text-sm font-semibold">Saldo acumulado</p></div></div>
-        <div className="p-6 rounded-xl bg-white dark:bg-slate-800 border"><p className="text-sm text-slate-500">Meta Global</p><p className="text-3xl font-bold">{formatCurrencyCOP(summary.globalGoal)}</p><p className="text-sm text-slate-500">{summary.percentage}% del objetivo</p></div>
-        <div className="p-6 rounded-xl bg-white dark:bg-slate-800 border"><p className="text-sm text-slate-500">Rendimiento</p><p className="text-3xl font-bold">{performance.performancePct >= 0 ? "+" : "-"}{Math.abs(performance.performancePct).toFixed(1)}%</p><div className="flex items-center gap-1 text-emerald-500"><Target className="w-4 h-4" /><p className="text-sm font-semibold">{performance.deltaVsPrev >= 0 ? "↑" : "↓"} {performance.deltaVsPrev >= 0 ? "+" : "-"}{Math.abs(performance.deltaVsPrev).toFixed(1)}% vs mes anterior</p></div></div>
+        <div className="p-6 rounded-xl bg-white dark:bg-slate-800 border"><p className="text-sm text-slate-500">Ahorro Total</p><p className="text-2xl sm:text-3xl leading-tight break-all font-bold">{formatCurrencyCOP(summary.totalSavings)}</p><div className="flex items-center gap-1 text-emerald-500"><PiggyBank className="w-4 h-4" /><p className="text-sm font-semibold">Saldo acumulado</p></div></div>
+        <div className="p-6 rounded-xl bg-white dark:bg-slate-800 border"><p className="text-sm text-slate-500">Meta Global</p><p className="text-2xl sm:text-3xl leading-tight break-all font-bold">{formatCurrencyCOP(summary.globalGoal)}</p><p className="text-sm text-slate-500">{summary.percentage}% del objetivo</p></div>
+        <div className="p-6 rounded-xl bg-white dark:bg-slate-800 border"><p className="text-sm text-slate-500">Rendimiento</p><p className="text-2xl sm:text-3xl leading-tight break-all font-bold">{performance.performancePct >= 0 ? "+" : "-"}{Math.abs(performance.performancePct).toFixed(1)}%</p><div className="flex items-center gap-1 text-emerald-500"><Target className="w-4 h-4" /><p className="text-sm font-semibold">{performance.deltaVsPrev >= 0 ? "↑" : "↓"} {performance.deltaVsPrev >= 0 ? "+" : "-"}{Math.abs(performance.deltaVsPrev).toFixed(1)}% vs mes anterior</p></div></div>
         <div className="p-6 rounded-xl bg-primary/10 border border-primary/20">
           <p className="text-sm text-primary font-bold">Días para meta próxima</p>
-          <p className="text-primary dark:text-white text-3xl font-bold">
+          <p className="text-primary dark:text-white text-2xl sm:text-3xl leading-tight break-all font-bold">
             {upcomingGoal
               ? upcomingGoal.overdue
                 ? `${upcomingGoal.daysRemaining} Día(s)`
@@ -600,7 +600,7 @@ export default function SavingsManager({
 
       {isNewGoalOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <form onSubmit={createGoal} className="w-full max-w-lg rounded-xl border bg-white dark:bg-slate-900 p-6 space-y-4">
+          <form onSubmit={createGoal} className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl border bg-white dark:bg-slate-900 p-6 space-y-4">
             <h3 className="text-xl font-bold">{editingGoal ? "Editar meta de ahorro" : "Nueva meta de ahorro"}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <input required value={goalForm.title} onChange={(e) => setGoalForm((s) => ({ ...s, title: e.target.value }))} placeholder="Nombre meta" className="px-3 py-2 rounded-lg border bg-slate-50 dark:bg-slate-800" />
@@ -645,7 +645,7 @@ export default function SavingsManager({
 
       {isContributionOpen && selectedGoal && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <form onSubmit={addContribution} className="w-full max-w-md rounded-xl border bg-white dark:bg-slate-900 p-6 space-y-4">
+          <form onSubmit={addContribution} className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl border bg-white dark:bg-slate-900 p-6 space-y-4">
             <h3 className="text-xl font-bold">Nueva aportación: {selectedGoal.title}</h3>
             <input required type="text" inputMode="numeric" value={contribForm.amount} onChange={(e) => setContribForm((s) => ({ ...s, amount: formatMoneyInput(e.target.value) }))} placeholder="Monto" className="w-full px-3 py-2 rounded-lg border bg-slate-50 dark:bg-slate-800" />
             <input type="date" value={contribForm.contribution_date} onChange={(e) => setContribForm((s) => ({ ...s, contribution_date: e.target.value }))} className="w-full px-3 py-2 rounded-lg border bg-slate-50 dark:bg-slate-800" />

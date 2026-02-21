@@ -101,5 +101,5 @@ export const resolveCategoryIcon = (iconName: string): LucideIcon => {
 
 export const canManageCategories = (role: string | null, tier: string | null) => {
   if (role === "admin") return true;
-  return tier === "premium" || tier === "pro";
+  return tier === "premium";
 };

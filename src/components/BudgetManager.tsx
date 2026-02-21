@@ -205,18 +205,18 @@ export default function BudgetManager({
           <h2 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">Gestión de Presupuestos</h2>
           <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg">Controla límites por categoría y mes.</p>
         </div>
-        <button onClick={openCreate} className="flex items-center gap-2 px-6 py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20">
+        <button onClick={openCreate} className="w-full sm:w-auto justify-center flex items-center gap-2 px-6 py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20">
           <PlusCircle className="w-5 h-5" /> Crear Nuevo Presupuesto
         </button>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border"><p className="text-sm text-slate-500">Total Gastado</p><p className="text-3xl font-bold">{formatCurrencyCOP(summary.totalSpent)}</p></div>
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border"><p className="text-sm text-slate-500">Total Presupuestado</p><p className="text-3xl font-bold">{formatCurrencyCOP(summary.totalBudget)}</p></div>
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border"><p className="text-sm text-slate-500">Disponible</p><p className={`text-3xl font-bold ${summary.available >= 0 ? "text-primary" : "text-rose-600"}`}>{formatCurrencyCOP(Math.abs(summary.available))}</p></div>
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border"><p className="text-sm text-slate-500">Total Gastado</p><p className="text-2xl sm:text-3xl leading-tight break-all font-bold">{formatCurrencyCOP(summary.totalSpent)}</p></div>
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border"><p className="text-sm text-slate-500">Total Presupuestado</p><p className="text-2xl sm:text-3xl leading-tight break-all font-bold">{formatCurrencyCOP(summary.totalBudget)}</p></div>
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border"><p className="text-sm text-slate-500">Disponible</p><p className={`text-2xl sm:text-3xl leading-tight break-all font-bold ${summary.available >= 0 ? "text-primary" : "text-rose-600"}`}>{formatCurrencyCOP(Math.abs(summary.available))}</p></div>
       </div>
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
         <h3 className="text-2xl font-bold">Categorías Activas</h3>
         <div className="flex items-center gap-2">
           <Filter className="w-5 h-5 text-slate-500" />
@@ -243,9 +243,9 @@ export default function BudgetManager({
                   <img src={budget.image_url || DEFAULT_PANEL_IMAGE} alt={budget.category} className="w-full h-full object-cover" />
                 </div>
                 <div className="flex-1 w-full">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h4 className="text-xl font-bold flex items-center gap-2">
+                  <div className="flex justify-between items-start mb-2 gap-3">
+                    <div className="min-w-0">
+                      <h4 className="text-xl font-bold flex items-center gap-2 break-words">
                         <CategoryIcon className="w-5 h-5 text-primary" />
                         {budget.category}
                       </h4>
@@ -256,9 +256,9 @@ export default function BudgetManager({
                       <p className="text-xs text-slate-400">Consumido</p>
                     </div>
                   </div>
-                  <div className="flex justify-between text-sm mb-3">
-                    <span className="font-medium">Gastado: {formatCurrencyCOP(spent)}</span>
-                    <span className="font-medium text-slate-400">Presupuesto: {formatCurrencyCOP(Number(budget.monthly_limit) || 0)}</span>
+                  <div className="flex flex-col sm:flex-row sm:justify-between text-sm mb-3 gap-1">
+                    <span className="font-medium break-all">Gastado: {formatCurrencyCOP(spent)}</span>
+                    <span className="font-medium text-slate-400 break-all">Presupuesto: {formatCurrencyCOP(Number(budget.monthly_limit) || 0)}</span>
                   </div>
                   <div className="w-full bg-slate-100 dark:bg-slate-800 h-3 rounded-full overflow-hidden mb-3">
                     <div className="bg-primary h-full rounded-full" style={{ width: `${percentage}%` }}></div>
@@ -276,7 +276,7 @@ export default function BudgetManager({
 
       {isOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <form onSubmit={save} className="w-full max-w-lg rounded-xl border bg-white dark:bg-slate-900 p-6 space-y-4">
+          <form onSubmit={save} className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl border bg-white dark:bg-slate-900 p-6 space-y-4">
             <h3 className="text-xl font-bold">{editing ? "Editar presupuesto" : "Nuevo presupuesto"}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <select required value={form.category} onChange={(e) => setForm((s) => ({ ...s, category: e.target.value }))} className="px-3 py-2 rounded-lg border bg-slate-50 dark:bg-slate-800">

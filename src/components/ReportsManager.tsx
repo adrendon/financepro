@@ -97,11 +97,13 @@ export default function ReportsManager({ initialTransactions, todayISO }: { init
 
   const categoryTotalLabel = useMemo(() => formatCurrencyCOP(categoryDistribution.total), [categoryDistribution.total]);
   const categoryTotalClass = useMemo(() => {
-    const digits = categoryTotalLabel.replace(/\D/g, "").length;
-    if (digits >= 12) return "text-base sm:text-lg";
-    if (digits >= 10) return "text-lg sm:text-xl";
-    if (digits >= 8) return "text-xl sm:text-2xl";
-    return "text-2xl sm:text-4xl";
+    const textLength = categoryTotalLabel.length;
+    if (textLength >= 16) return "text-xs";
+    if (textLength >= 14) return "text-sm";
+    if (textLength >= 12) return "text-base";
+    if (textLength >= 10) return "text-lg";
+    if (textLength >= 8) return "text-xl";
+    return "text-2xl";
   }, [categoryTotalLabel]);
 
   const donutGradient = useMemo(() => {
@@ -189,28 +191,30 @@ export default function ReportsManager({ initialTransactions, todayISO }: { init
       ) : null}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <section className="lg:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-2xl border shadow-sm">
+        <section className="lg:col-span-2 bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-2xl border shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-2xl font-black">Tendencia de Gastos Mensuales</h3>
             <MoreHorizontal className="w-5 h-5 text-slate-400" />
           </div>
 
-          <div className="h-72 grid grid-cols-6 items-end gap-3 border-b border-slate-200 dark:border-slate-800 pb-6">
-            {monthlyExpenses.map((row) => (
-              <div key={row.label} className="flex flex-col items-center gap-3 h-full justify-end">
-                <div className="w-full rounded-t-md bg-primary/80" style={{ height: `${(row.value / maxMonthlyExpense) * 100}%` }}></div>
-                <span className="text-sm font-semibold text-slate-500">{row.label}</span>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <div className="h-72 min-w-[420px] grid grid-cols-6 items-end gap-3 border-b border-slate-200 dark:border-slate-800 pb-6">
+              {monthlyExpenses.map((row) => (
+                <div key={row.label} className="flex flex-col items-center gap-3 h-full justify-end">
+                  <div className="w-full rounded-t-md bg-primary/80" style={{ height: `${(row.value / maxMonthlyExpense) * 100}%` }}></div>
+                  <span className="text-sm font-semibold text-slate-500">{row.label}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
-        <section className="bg-white dark:bg-slate-900 p-6 rounded-2xl border shadow-sm">
+        <section className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-2xl border shadow-sm">
           <h3 className="text-2xl font-black mb-4">Distribución por Categoría</h3>
           <div className="flex items-center justify-center mb-5">
-            <div className="relative w-52 h-52 rounded-full" style={{ background: donutGradient }}>
-              <div className="absolute inset-5 rounded-full bg-white dark:bg-slate-900 flex flex-col items-center justify-center text-center">
-                <p className={`w-full max-w-full px-2 text-center whitespace-nowrap leading-none tracking-tight font-black ${categoryTotalClass}`}>
+            <div className="relative w-44 h-44 sm:w-52 sm:h-52 rounded-full" style={{ background: donutGradient }}>
+              <div className="absolute inset-4 rounded-full bg-white dark:bg-slate-900 flex flex-col items-center justify-center text-center">
+                <p className={`w-full max-w-full px-3 text-center whitespace-nowrap leading-none tracking-tight font-black truncate ${categoryTotalClass}`}>
                   {categoryTotalLabel}
                 </p>
                 <p className="text-sm text-slate-500">TOTAL GASTADO</p>
@@ -218,18 +222,18 @@ export default function ReportsManager({ initialTransactions, todayISO }: { init
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
             {categoryDistribution.ordered.map((item, index) => (
               <div key={item.name} className="flex items-center gap-2">
                 <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: DONUT_COLORS[index % DONUT_COLORS.length] }}></span>
-                <span className="text-slate-600 dark:text-slate-300">{item.name} ({item.percentage}%)</span>
+                <span className="text-slate-600 dark:text-slate-300 truncate">{item.name} ({item.percentage}%)</span>
               </div>
             ))}
           </div>
         </section>
       </div>
 
-      <section className="bg-white dark:bg-slate-900 p-6 rounded-2xl border shadow-sm mb-8">
+      <section className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-2xl border shadow-sm mb-8">
         <div className="flex items-end justify-between mb-6">
           <div>
             <h3 className="text-2xl font-black">Ingresos vs. Gastos</h3>
@@ -241,16 +245,18 @@ export default function ReportsManager({ initialTransactions, todayISO }: { init
           </div>
         </div>
 
-        <div className="h-80 grid grid-cols-6 items-end gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
-          {comparisonSeries.map((row) => (
-            <div key={row.key} className="flex flex-col items-center gap-3 h-full justify-end">
-              <div className="w-full h-full flex items-end gap-1">
-                <div className="w-1/2 bg-primary rounded-t-md" style={{ height: `${(row.income / maxComparisonValue) * 100}%` }}></div>
-                <div className="w-1/2 bg-rose-500 rounded-t-md" style={{ height: `${(row.expense / maxComparisonValue) * 100}%` }}></div>
+        <div className="overflow-x-auto">
+          <div className="h-80 min-w-[420px] grid grid-cols-6 items-end gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
+            {comparisonSeries.map((row) => (
+              <div key={row.key} className="flex flex-col items-center gap-3 h-full justify-end">
+                <div className="w-full h-full flex items-end gap-1">
+                  <div className="w-1/2 bg-primary rounded-t-md" style={{ height: `${(row.income / maxComparisonValue) * 100}%` }}></div>
+                  <div className="w-1/2 bg-rose-500 rounded-t-md" style={{ height: `${(row.expense / maxComparisonValue) * 100}%` }}></div>
+                </div>
+                <span className="text-sm font-semibold text-slate-500">{row.label}</span>
               </div>
-              <span className="text-sm font-semibold text-slate-500">{row.label}</span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 

@@ -272,14 +272,14 @@ export default function ProfileManager({
                 }}
               />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-3xl font-black text-slate-900 dark:text-white">{fullName || "Usuario"}</h2>
+                <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white break-words">{fullName || "Usuario"}</h2>
                 <span className="px-2.5 py-1 rounded-full text-xs font-semibold border border-primary/30 bg-primary/10 text-primary">
                   Membresía {plan}
                 </span>
               </div>
-              <p className="text-slate-700 dark:text-slate-300 text-2xl">{profile?.email || "Sin correo"}</p>
+              <p className="text-slate-700 dark:text-slate-300 text-base md:text-xl break-all">{profile?.email || "Sin correo"}</p>
               <p className="text-slate-500 dark:text-slate-400 italic">Miembro de FinancePro</p>
             </div>
           </div>
@@ -293,8 +293,8 @@ export default function ProfileManager({
         </div>
       </section>
 
-      <div className="bg-transparent">
-        <nav className="h-14 px-2 border-b border-slate-300/60 dark:border-slate-700/40 flex items-end flex-wrap gap-8">
+      <div className="bg-transparent overflow-x-auto">
+        <nav className="h-14 px-2 border-b border-slate-300/60 dark:border-slate-700/40 flex items-end gap-5 md:gap-8 whitespace-nowrap min-w-max">
           <a href="#perfil-info" onClick={(event) => scrollToSection(event, "perfil-info")} className={navClass("info")}>Información</a>
           <a href="#perfil-seguridad" onClick={(event) => scrollToSection(event, "perfil-seguridad")} className={navClass("seguridad")}>Seguridad</a>
           <a href="#perfil-actividad" onClick={(event) => scrollToSection(event, "perfil-actividad")} className={navClass("actividad")}>Actividad</a>
