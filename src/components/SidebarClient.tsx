@@ -99,7 +99,7 @@ export function SidebarClient({ initialProfile }: { initialProfile: SidebarProfi
     <>
       <NotificationCenter />
 
-      <aside className={`h-screen border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col shrink-0 transition-all duration-300 ${collapsed ? "w-20" : "w-64"}`}>
+      <aside className={`h-screen border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col shrink-0 transition-all duration-300 ${collapsed ? "w-24" : "w-64"}`}>
         <div className="p-6 flex items-center gap-3">
           <div className={`flex items-center justify-between w-full ${collapsed ? "gap-0" : "gap-3"}`}>
             <button
