@@ -183,7 +183,7 @@ export default function SettingsManager({
   }, []);
 
   const navClass = (key: "general" | "notificaciones" | "seguridad" | "privacidad" | "suscripcion") =>
-    `pb-3 border-b-2 ${
+    `pb-3 border-b-2 whitespace-nowrap ${
       activeSection === key
         ? "border-primary text-primary font-semibold"
         : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white"
@@ -202,8 +202,8 @@ export default function SettingsManager({
     <div className="space-y-8">
       {toast ? <AppToast toast={toast} onClose={() => setToast(null)} /> : null}
 
-      <div className="bg-transparent">
-        <nav className="h-14 px-2 border-b border-slate-300/60 dark:border-slate-700/40 flex items-end flex-wrap gap-8">
+      <div className="bg-transparent overflow-x-auto">
+        <nav className="h-14 px-2 border-b border-slate-300/60 dark:border-slate-700/40 flex items-end gap-5 md:gap-8 whitespace-nowrap min-w-max">
           <a href="#cfg-general" onClick={(event) => scrollToSection(event, "cfg-general")} className={navClass("general")}>Preferencias Generales</a>
           <a href="#cfg-notificaciones" onClick={(event) => scrollToSection(event, "cfg-notificaciones")} className={navClass("notificaciones")}>Notificaciones</a>
           <a href="#cfg-seguridad" onClick={(event) => scrollToSection(event, "cfg-seguridad")} className={navClass("seguridad")}>Seguridad</a>
