@@ -22,28 +22,27 @@ export function DashboardHeader({ rangeLabel }: DashboardHeaderProps) {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (!user?.id) return;
+      const [profileResult, categoriesResult] = await Promise.all([
+        user?.id
+          ? supabase.from("profiles").select("full_name, email").eq("id", user.id).maybeSingle()
+          : Promise.resolve({ data: null }),
+        supabase
+          .from("categories")
+          .select("id, name, icon, applies_to")
+          .in("applies_to", ["transaction", "bill", "budget", "saving"])
+          .order("name", { ascending: true }),
+      ]);
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name, email")
-        .eq("id", user.id)
-        .maybeSingle();
+      const profile = profileResult.data;
+      const categoriesData = categoriesResult.data;
 
       const fullName = profile?.full_name?.trim();
       if (fullName) {
         setDisplayName(fullName.split(" ")[0] || fullName);
-        return;
+      } else {
+        const fallback = profile?.email?.split("@")[0] || user?.email?.split("@")[0];
+        if (fallback) setDisplayName(fallback);
       }
-
-      const fallback = profile?.email?.split("@")[0] || user.email?.split("@")[0];
-      if (fallback) setDisplayName(fallback);
-
-      const { data: categoriesData } = await supabase
-        .from("categories")
-        .select("id, name, icon, applies_to")
-        .eq("applies_to", "transaction")
-        .order("name", { ascending: true });
 
       setCategories((categoriesData as AppCategory[]) || []);
     };

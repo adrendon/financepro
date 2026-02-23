@@ -93,6 +93,30 @@ type UndoAction =
   | { kind: "delete"; rows: Tx[] }
   | { kind: "bulk-update"; rows: Tx[] };
 
+const HISTORY_ACTION_LABEL: Record<string, string> = {
+  create: "Creación",
+  edit: "Edición",
+  delete: "Eliminación",
+  "bulk-update": "Edición masiva",
+  undo: "Deshacer",
+  rule: "Regla",
+  template: "Plantilla",
+  recurring: "Recurrente",
+};
+
+const getHistoryActionLabel = (action: string) => {
+  return HISTORY_ACTION_LABEL[action] || "Cambio";
+};
+
+const getHistoryDetailLabel = (detail: string) => {
+  return detail
+    .replace(/transacci[oó]n\s+#\d+/gi, "transacción")
+    .replace(/\s+#\d+/g, "")
+    .replace(/\(\s*([^()]+)\s*\)$/, ": $1")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+};
+
 function makeTempId() {
   return -Math.floor(Date.now() + Math.random() * 1000);
 }
@@ -308,7 +332,9 @@ export default function TransactionsManager({
       armUndo({ kind: "delete", rows: previousRows });
       void appendHistory(
         "delete",
-        ids.length === 1 ? `Eliminada transacción #${ids[0]}` : `Eliminadas ${ids.length} transacciones`,
+        ids.length === 1
+          ? `Transacción eliminada: ${previousRows[0]?.merchant || "registro"}`
+          : `Se eliminaron ${ids.length} transacciones`,
         { transaction_ids: ids }
       );
       showToast("success", ids.length === 1 ? "Transacción eliminada." : "Transacciones eliminadas.");
@@ -334,7 +360,7 @@ export default function TransactionsManager({
         return;
       }
       setTransactions((prev) => prev.filter((tx) => tx.id !== undoAction.createdId));
-      void appendHistory("undo", `Revertida creación de transacción #${undoAction.createdId}`, { created_id: undoAction.createdId });
+      void appendHistory("undo", "Se revirtió una creación de transacción", { created_id: undoAction.createdId });
       showToast("success", "Creación revertida.");
       setUndoAction(null);
       return;
@@ -487,7 +513,7 @@ export default function TransactionsManager({
       return;
     }
     setRules((prev) => prev.filter((rule) => rule.id !== id));
-    void appendHistory("rule", `Regla eliminada #${id}`, { id });
+    void appendHistory("rule", "Regla eliminada", { id });
   };
 
   const addTemplate = async () => {
@@ -573,7 +599,7 @@ export default function TransactionsManager({
     }
 
     setTemplates((prev) => prev.filter((template) => template.id !== id));
-    void appendHistory("template", `Plantilla desactivada #${id}`, { id });
+    void appendHistory("template", "Plantilla desactivada", { id });
   };
 
   const runTemplateForCurrentMonth = async (template: RecurringTemplate) => {
@@ -1003,8 +1029,8 @@ export default function TransactionsManager({
                 historyLog.slice(0, 20).map((item) => (
                   <tr key={item.id} className="border-b border-slate-100 dark:border-slate-800">
                     <td className="py-2 pr-3">{new Date(item.at).toLocaleString("es-ES")}</td>
-                    <td className="py-2 pr-3 font-semibold">{item.action}</td>
-                    <td className="py-2">{item.detail}</td>
+                    <td className="py-2 pr-3 font-semibold">{getHistoryActionLabel(item.action)}</td>
+                    <td className="py-2">{getHistoryDetailLabel(item.detail)}</td>
                   </tr>
                 ))
               )}
@@ -1027,13 +1053,13 @@ export default function TransactionsManager({
             if (mode === "create") {
               setTransactions((prev) => [savedTx, ...prev].sort((a, b) => b.date.localeCompare(a.date)));
               armUndo({ kind: "create", createdId: savedTx.id });
-              void appendHistory("create", `Creada transacción #${savedTx.id} (${savedTx.merchant})`, {
+              void appendHistory("create", `Transacción creada: ${savedTx.merchant}`, {
                 tx_id: savedTx.id,
                 merchant: savedTx.merchant,
               });
             } else {
               setTransactions((prev) => prev.map((item) => (item.id === savedTx.id ? savedTx : item)));
-              void appendHistory("edit", `Editada transacción #${savedTx.id}`, { tx_id: savedTx.id });
+              void appendHistory("edit", `Transacción editada: ${savedTx.merchant}`, { tx_id: savedTx.id });
             }
           } else {
             await reload();
