@@ -42,18 +42,73 @@ const getIcon = (merchant: string, category: string) => {
 
 export default async function TransactionTable() {
   const supabase = await createClient();
-  // Consultar datos reales desde Supabase (Server Component)
-  const { data: transactions, error } = await supabase
-    .from("transactions")
-    .select("*")
-    .order("date", { ascending: false });
+  const [{ data: transactions, error }, { data: investments }, { data: bills }] = await Promise.all([
+    supabase.from("transactions").select("id, merchant, category, amount, type, date"),
+    supabase
+      .from("investments")
+      .select("id, name, investment_type, invested_amount, started_at, created_at"),
+    supabase
+      .from("upcoming_bills")
+      .select("id, title, amount, due_date, status"),
+  ]);
 
   if (error) {
     console.error("Error al cargar transacciones:", error);
   }
 
-  // Usar arreglo vacío como respaldo si no hay datos
-  const allTransactions = transactions || [];
+  const normalizedTx = ((transactions || []) as Array<{
+    id: number;
+    merchant: string;
+    category: string;
+    amount: number;
+    type: "income" | "expense";
+    date: string;
+  }>).map((tx) => ({ ...tx, source: "transaction" as const }));
+
+  const normalizedInvestments = ((investments || []) as Array<{
+    id: number;
+    name: string;
+    investment_type: string;
+    invested_amount: number;
+    started_at: string | null;
+    created_at?: string | null;
+  }>)
+    .map((inv) => {
+      const sourceDate = inv.started_at || inv.created_at?.slice(0, 10);
+      if (!sourceDate) return null;
+      return {
+        id: -100000 - inv.id,
+        merchant: inv.name,
+        category: inv.investment_type || "Inversiones",
+        amount: Math.abs(Number(inv.invested_amount) || 0),
+        type: "expense" as const,
+        date: sourceDate,
+        source: "investment" as const,
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+  const normalizedBills = ((bills || []) as Array<{
+    id: number;
+    title: string;
+    amount: number;
+    due_date: string;
+    status: string;
+  }>)
+    .filter((bill) => bill.status !== "Pagado")
+    .map((bill) => ({
+      id: -200000 - bill.id,
+      merchant: bill.title,
+      category: "Facturas",
+      amount: Math.abs(Number(bill.amount) || 0),
+      type: "expense" as const,
+      date: bill.due_date,
+      source: "bill" as const,
+    }));
+
+  const allTransactions = [...normalizedTx, ...normalizedInvestments, ...normalizedBills].sort((a, b) =>
+    b.date.localeCompare(a.date)
+  );
   const now = new Date();
   const currentDay = now.getDay();
   const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay;

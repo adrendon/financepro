@@ -1,73 +1,135 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import { MoreHorizontal } from "lucide-react";
-import { createClient } from "@/utils/supabase/server";
+import type { AppCategory } from "@/utils/categories";
 import { formatCurrencyCOP } from "@/utils/formatters";
 
-const segmentColors = ["#144bb8", "#10b981", "#fb7185", "#64748b"];
+type TxRow = {
+  category: string;
+  amount: number;
+  type: "income" | "expense";
+  date: string;
+};
 
-export default async function SpendingBreakdown() {
-  const supabase = await createClient();
-  const { data: transactions } = await supabase
-    .from("transactions")
-    .select("category, amount, type, date");
+type InvestmentRow = {
+  name: string;
+  investment_type: string;
+  invested_amount: number;
+  started_at: string | null;
+  created_at?: string | null;
+};
 
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
+type BillRow = {
+  title: string;
+  amount: number;
+  due_date: string;
+  status: string;
+};
 
-  const expenseByCategory = new Map<string, number>();
+type Item = {
+  name: string;
+  amount: number;
+  percentage: number;
+  color: string;
+};
 
-  (transactions || []).forEach((tx) => {
-    if (tx.type !== "expense") return;
-    const txDate = new Date(`${tx.date}T00:00:00`);
-    const isCurrentMonth = txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
-    if (!isCurrentMonth) return;
+function getSegmentColor(index: number, total: number) {
+  const hue = Math.round((index * (360 / Math.max(total, 1))) % 360);
+  return `hsl(${hue} 72% 52%)`;
+}
 
-    const category = tx.category || "Sin categoría";
-    const amount = Math.abs(Number(tx.amount) || 0);
-    expenseByCategory.set(category, (expenseByCategory.get(category) || 0) + amount);
-  });
+function polarToCartesian(cx: number, cy: number, radius: number, angleDeg: number) {
+  const angleRad = ((angleDeg - 90) * Math.PI) / 180;
+  return {
+    x: cx + radius * Math.cos(angleRad),
+    y: cy + radius * Math.sin(angleRad),
+  };
+}
 
-  const fullTotal = Array.from(expenseByCategory.values()).reduce((sum, value) => sum + value, 0);
-  const fullTotalLabel = formatCurrencyCOP(fullTotal);
-  const totalDigits = fullTotalLabel.replace(/\D/g, "").length;
-  const totalClass = totalDigits >= 12
-    ? "text-sm"
-    : totalDigits >= 10
-      ? "text-base"
-      : totalDigits >= 8
-        ? "text-lg"
-        : "text-xl";
+function describeArc(cx: number, cy: number, radius: number, startAngle: number, endAngle: number) {
+  const start = polarToCartesian(cx, cy, radius, endAngle);
+  const end = polarToCartesian(cx, cy, radius, startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`;
+}
 
-  const categories = Array.from(expenseByCategory.entries())
-    .map(([name, amount]) => ({ name, amount }))
-    .sort((a, b) => b.amount - a.amount)
-    .slice(0, 4);
+export default function SpendingBreakdown({
+  transactions,
+  investments,
+  bills,
+  todayISO,
+}: {
+  transactions: TxRow[];
+  investments: InvestmentRow[];
+  bills: BillRow[];
+  todayISO: string;
+}) {
+  const [hovered, setHovered] = useState<Item | null>(null);
 
-  const topFourTotal = categories.reduce((sum, item) => sum + item.amount, 0);
-  const otherAmount = Math.max(0, fullTotal - topFourTotal);
+  const { items, total } = useMemo(() => {
+    const now = new Date(`${todayISO}T00:00:00`);
+    const month = now.getMonth();
+    const year = now.getFullYear();
 
-  const gradient =
-    fullTotal > 0
-      ? (() => {
-          const segments = categories.map((item, index) => ({
-            color: segmentColors[index % segmentColors.length],
-            amount: item.amount,
-          }));
-          if (otherAmount > 0) {
-            segments.push({ color: "#cbd5e1", amount: otherAmount });
-          }
+    const expenseByCategory = new Map<string, number>();
 
-          let current = 0;
-          return `conic-gradient(${segments
-            .map((segment) => {
-              const start = current;
-              const portion = (segment.amount / fullTotal) * 100;
-              current += portion;
-              return `${segment.color} ${start.toFixed(2)}% ${current.toFixed(2)}%`;
-            })
-            .join(", ")})`;
-        })()
-      : "conic-gradient(#e2e8f0 0% 100%)";
+    transactions.forEach((tx) => {
+      if (tx.type !== "expense") return;
+      const txDate = new Date(`${tx.date}T00:00:00`);
+      const isCurrentMonth = txDate.getMonth() === month && txDate.getFullYear() === year;
+      if (!isCurrentMonth) return;
+
+      const key = tx.category || "Sin categoría";
+      expenseByCategory.set(key, (expenseByCategory.get(key) || 0) + Math.abs(Number(tx.amount) || 0));
+    });
+
+    investments.forEach((inv) => {
+      const sourceDate = inv.started_at || inv.created_at?.slice(0, 10);
+      if (!sourceDate) return;
+      const invDate = new Date(`${sourceDate}T00:00:00`);
+      const isCurrentMonth = invDate.getMonth() === month && invDate.getFullYear() === year;
+      if (!isCurrentMonth) return;
+
+      const key = inv.investment_type?.trim() || "Inversiones";
+      expenseByCategory.set(key, (expenseByCategory.get(key) || 0) + Math.abs(Number(inv.invested_amount) || 0));
+    });
+
+    const monthStartISO = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+    const nextMonth = new Date(year, month + 1, 1);
+    const nextMonthStartISO = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}-01`;
+
+    bills.forEach((bill) => {
+      if (bill.status === "Pagado") return;
+      if (!(bill.due_date >= monthStartISO && bill.due_date < nextMonthStartISO)) return;
+
+      const key = "Facturas";
+      expenseByCategory.set(key, (expenseByCategory.get(key) || 0) + Math.abs(Number(bill.amount) || 0));
+    });
+
+    const totalAmount = Array.from(expenseByCategory.values()).reduce((sum, value) => sum + value, 0);
+
+    const mapped = Array.from(expenseByCategory.entries())
+      .map(([name, amount], index) => ({
+        name,
+        amount,
+        percentage: totalAmount > 0 ? (amount / totalAmount) * 100 : 0,
+        color: getSegmentColor(index, expenseByCategory.size),
+      }))
+      .sort((a, b) => b.amount - a.amount);
+
+    return { items: mapped, total: totalAmount };
+  }, [transactions, investments, bills, todayISO]);
+
+  const totalLabel = formatCurrencyCOP(total);
+  const centerLabel = hovered
+    ? `${hovered.name} · ${formatCurrencyCOP(hovered.amount)} (${hovered.percentage.toFixed(1)}%)`
+    : totalLabel;
+
+  const size = 220;
+  const stroke = 18;
+  const radius = size / 2 - stroke / 2;
+  let cursorAngle = 0;
 
   return (
     <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -78,39 +140,64 @@ export default async function SpendingBreakdown() {
         </button>
       </div>
 
-      <div className="flex flex-col md:flex-row items-center gap-12">
-        <div
-          className="relative w-48 h-48 rounded-full flex items-center justify-center shrink-0"
-          style={{ background: gradient }}
-        >
-          <div className="w-32 h-32 bg-white dark:bg-slate-900 rounded-full flex flex-col items-center justify-center shadow-inner z-10">
-            <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">
-              Total mes
-            </span>
-            <span className={`w-full max-w-full px-2 text-center whitespace-nowrap leading-none tracking-tight font-bold ${totalClass}`}>
-              {fullTotalLabel}
-            </span>
+      <div className="flex flex-col md:flex-row items-center gap-10">
+        <div className="relative w-[220px] h-[220px] shrink-0">
+          <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+            {items.length === 0 ? (
+              <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#e2e8f0" strokeWidth={stroke} />
+            ) : (
+              items.map((item) => {
+                const start = cursorAngle;
+                const sweep = (item.percentage / 100) * 360;
+                const end = start + sweep;
+                cursorAngle = end;
+
+                return (
+                  <path
+                    key={item.name}
+                    d={describeArc(size / 2, size / 2, radius, start, end)}
+                    fill="none"
+                    stroke={item.color}
+                    strokeWidth={stroke}
+                    strokeLinecap="butt"
+                    className="cursor-pointer transition-opacity hover:opacity-85"
+                    onMouseEnter={() => setHovered(item)}
+                    onMouseLeave={() => setHovered(null)}
+                  >
+                    <title>{`${item.name}: ${formatCurrencyCOP(item.amount)} (${item.percentage.toFixed(1)}%)`}</title>
+                  </path>
+                );
+              })
+            )}
+          </svg>
+
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-4">
+            <div className="w-32 h-32 bg-white dark:bg-slate-900 rounded-full flex flex-col items-center justify-center shadow-inner text-center">
+              <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">
+                {hovered ? "Categoría" : "Total mes"}
+              </span>
+              <span className="text-xs font-bold leading-tight wrap-break-word">{centerLabel}</span>
+            </div>
           </div>
         </div>
 
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
-          {categories.length === 0 ? (
+        <div className="flex-1 w-full max-h-72 overflow-auto space-y-3 pr-1">
+          {items.length === 0 ? (
             <p className="text-sm text-slate-500">No hay gastos registrados.</p>
           ) : (
-            categories.map((category, index) => (
+            items.map((item) => (
               <div
-                key={category.name}
-                className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50"
+                key={item.name}
+                className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+                onMouseEnter={() => setHovered(item)}
+                onMouseLeave={() => setHovered(null)}
               >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: segmentColors[index % segmentColors.length] }}
-                  ></div>
-                  <span className="text-sm font-medium">{category.name}</span>
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                  <span className="text-sm font-medium truncate">{item.name}</span>
                 </div>
-                <span className="text-sm font-bold">
-                  {formatCurrencyCOP(category.amount)}
+                <span className="text-sm font-bold whitespace-nowrap">
+                  {formatCurrencyCOP(item.amount)} · {item.percentage.toFixed(1)}%
                 </span>
               </div>
             ))
