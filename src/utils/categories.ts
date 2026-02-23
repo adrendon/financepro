@@ -99,7 +99,6 @@ export const resolveCategoryIcon = (iconName: string): LucideIcon => {
   return iconMap[iconName] ?? Tag;
 };
 
-export const canManageCategories = (role: string | null, tier: string | null) => {
-  if (role === "admin") return true;
-  return tier === "premium";
+export const canManageCategories = (role: string | null) => {
+  return role === "admin" || role === "user";
 };

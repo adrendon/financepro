@@ -4,7 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
-  const next = requestUrl.searchParams.get("next") || "/";
+  const next = requestUrl.searchParams.get("next") || "/panel";
 
   if (code) {
     const supabase = await createClient();
@@ -37,6 +37,6 @@ export async function GET(request: Request) {
   }
 
   const origin = requestUrl.origin;
-  const safeNext = next.startsWith("/") ? next : "/";
+  const safeNext = next.startsWith("/") ? next : "/panel";
   return NextResponse.redirect(`${origin}${safeNext}`);
 }

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { tierLabel } from "@/utils/formatters";
 import { Camera, IdCard, Shield, BellRing } from "lucide-react";
 import AppToast from "@/components/AppToast";
+import LogoutButton from "@/components/LogoutButton";
 
 type Profile = {
   id: string;
@@ -13,9 +13,6 @@ type Profile = {
   avatar_url: string | null;
   phone: string | null;
   role: string | null;
-  subscription_tier: string | null;
-  subscription_status: string | null;
-  subscription_ends_at: string | null;
 };
 
 type Activity = {
@@ -57,8 +54,6 @@ export default function ProfileManager({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [activeSection, setActiveSection] = useState<"info" | "seguridad" | "actividad">("info");
   const [toast, setToast] = useState<{ type: "success" | "error"; text: string } | null>(null);
-
-  const plan = useMemo(() => tierLabel(profile?.subscription_tier), [profile?.subscription_tier]);
 
   useEffect(() => {
     const sections = [
@@ -275,9 +270,6 @@ export default function ProfileManager({
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white break-words">{fullName || "Usuario"}</h2>
-                <span className="px-2.5 py-1 rounded-full text-xs font-semibold border border-primary/30 bg-primary/10 text-primary">
-                  Membresía {plan}
-                </span>
               </div>
               <p className="text-slate-700 dark:text-slate-300 text-base md:text-xl break-all">{profile?.email || "Sin correo"}</p>
               <p className="text-slate-500 dark:text-slate-400 italic">Miembro de FinancePro</p>
@@ -290,6 +282,12 @@ export default function ProfileManager({
           >
             Guardar cambios
           </button>
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <div className="w-full sm:w-auto">
+            <LogoutButton />
+          </div>
         </div>
       </section>
 
@@ -334,9 +332,9 @@ export default function ProfileManager({
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold mb-2 text-slate-700 dark:text-slate-200">Plan</label>
+              <label className="block text-sm font-semibold mb-2 text-slate-700 dark:text-slate-200">Rol</label>
               <input
-                value={`${plan} · ${String(profile?.subscription_status || "active").toUpperCase()}`}
+                value={String(profile?.role || "user").toUpperCase()}
                 disabled
                 className="w-full px-4 py-3.5 rounded-xl border border-slate-300 dark:border-[#2a3e66] bg-slate-100 dark:bg-[#1e2b48] text-slate-700 dark:text-white"
               />

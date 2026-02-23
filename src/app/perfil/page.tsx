@@ -11,9 +11,7 @@ export default async function PerfilPage() {
   const [{ data: profile }, { data: activity }] = await Promise.all([
     supabase
       .from("profiles")
-      .select(
-        "id, full_name, email, avatar_url, phone, role, subscription_tier, subscription_status, subscription_ends_at"
-      )
+      .select("id, full_name, email, avatar_url, phone, role")
       .eq("id", user?.id ?? "")
       .maybeSingle(),
     supabase

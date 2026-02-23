@@ -18,49 +18,7 @@ import { useSharedNotifications } from "@/hooks/useSharedNotifications";
 import type { AppNotification } from "@/types/notifications";
 
 type NotificationCategory = "all" | "unread" | "alerts";
-
-const baseNotifications: AppNotification[] = [
-  {
-    id: "sec-1",
-    title: "Alerta de seguridad",
-    message: "Nuevo inicio de sesión detectado desde un dispositivo desconocido.",
-    time: "hace 5 min",
-    unread: true,
-    kind: "security",
-    actionLabel: "Ver detalle",
-    actionHref: "/perfil#perfil-seguridad",
-  },
-  {
-    id: "bill-1",
-    title: "Factura próxima",
-    message: "Tienes facturas próximas a vencer en las próximas 48 horas.",
-    time: "hace 2 horas",
-    unread: true,
-    kind: "bill",
-    actionLabel: "Ir a facturas",
-    actionHref: "/facturas",
-  },
-  {
-    id: "budget-1",
-    title: "Alerta de presupuesto",
-    message: "Una categoría superó el 80% del presupuesto mensual.",
-    time: "hace 5 horas",
-    unread: true,
-    kind: "budget",
-    actionLabel: "Ver presupuestos",
-    actionHref: "/presupuestos",
-  },
-  {
-    id: "payment-1",
-    title: "Suscripción renovada",
-    message: "Tu suscripción se renovó automáticamente.",
-    time: "ayer",
-    unread: false,
-    kind: "payment",
-    actionLabel: "Gestionar",
-    actionHref: "/suscripcion",
-  },
-];
+type BillUrgency = "paid" | "overdue" | "today" | "upcoming";
 
 const iconByKind = {
   security: <ShieldAlert className="w-5 h-5" />,
@@ -80,11 +38,44 @@ const iconColorByKind = {
   system: "bg-sky-100 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400",
 };
 
-export default function NotificationCenter() {
+function getBillUrgency(item: AppNotification): BillUrgency {
+  if (item.isPaid) return "paid";
+  if (!item.dueDateISO) return "upcoming";
+
+  const dueDate = new Date(`${item.dueDateISO}T00:00:00`);
+  if (Number.isNaN(dueDate.getTime())) return "upcoming";
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.floor((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return "overdue";
+  if (diffDays === 0) return "today";
+  return "upcoming";
+}
+
+const billTimeColor: Record<BillUrgency, string> = {
+  paid: "text-emerald-600 dark:text-emerald-400",
+  overdue: "text-rose-600 dark:text-rose-400",
+  today: "text-amber-600 dark:text-amber-400",
+  upcoming: "text-slate-500 dark:text-slate-400",
+};
+
+type NotificationCenterProps = {
+  anchored?: boolean;
+  hideOnMobile?: boolean;
+  panelPositionClass?: string;
+};
+
+export default function NotificationCenter({
+  anchored = true,
+  hideOnMobile = false,
+  panelPositionClass,
+}: NotificationCenterProps) {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<NotificationCategory>("all");
-  const { items: notifications, unreadCount, mergeIncoming, markAllRead, markRead } =
-    useSharedNotifications(baseNotifications);
+  const { items: notifications, unreadCount, mergeIncoming, markAllRead, markRead, dismiss } =
+    useSharedNotifications([]);
 
   useEffect(() => {
     const loadDynamicNotifications = async () => {
@@ -114,38 +105,70 @@ export default function NotificationCenter() {
         actionHref: "/transacciones",
       }));
 
-      const billNotifications: AppNotification[] = (billData || []).map((bill) => ({
-        id: `due-${bill.id}`,
-        title: `Factura: ${bill.title}`,
-        message: `Vence ${new Date(`${bill.due_date}T00:00:00`).toLocaleDateString("es-CO")}. Monto $${Math.round(Number(bill.amount || 0)).toLocaleString("es-CO")}.`,
-        time: "próximo vencimiento",
-        unread: bill.status !== "Pagado",
-        kind: "bill",
-        actionLabel: "Pagar ahora",
-        actionHref: `/facturas/${bill.id}`,
-      }));
+      const billNotifications: AppNotification[] = (billData || []).map((bill) => {
+        const dueDate = new Date(`${bill.due_date}T00:00:00`);
+        const today = new Date();
+        const dayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const diffDays = Math.floor((dueDate.getTime() - dayStart.getTime()) / (1000 * 60 * 60 * 24));
+        const isPaid = bill.status === "Pagado";
 
-      const merged = [...baseNotifications, ...billNotifications, ...txNotifications].slice(0, 8);
-      mergeIncoming(merged);
+        const time = isPaid
+          ? "pagada"
+          : diffDays < 0
+          ? `vencida hace ${Math.abs(diffDays)} día(s)`
+          : diffDays === 0
+          ? "vence hoy"
+          : `vence en ${diffDays} día(s)`;
+
+        const message = isPaid
+          ? `Pagada el ${dueDate.toLocaleDateString("es-CO")}. Monto $${Math.round(Number(bill.amount || 0)).toLocaleString("es-CO")}.`
+          : diffDays < 0
+          ? `Venció el ${dueDate.toLocaleDateString("es-CO")}. Monto $${Math.round(Number(bill.amount || 0)).toLocaleString("es-CO")}.`
+          : `Vence ${dueDate.toLocaleDateString("es-CO")}. Monto $${Math.round(Number(bill.amount || 0)).toLocaleString("es-CO")}.`;
+
+        return {
+          id: `bill-${bill.id}`,
+          title: `Factura: ${bill.title}`,
+          message,
+          time,
+          unread: !isPaid,
+          kind: "bill",
+          actionLabel: "Pagar ahora",
+          actionHref: `/facturas/${bill.id}`,
+          dueDateISO: bill.due_date,
+          isPaid,
+        };
+      });
+
+      mergeIncoming([...billNotifications, ...txNotifications].slice(0, 8));
     };
 
     void loadDynamicNotifications();
   }, [mergeIncoming]);
 
+  const pendingItems = useMemo(
+    () => notifications.filter((item) => item.unread),
+    [notifications]
+  );
+
   const visibleItems = useMemo(() => {
-    if (filter === "all") return notifications;
-    if (filter === "unread") return notifications.filter((item) => item.unread);
-    return notifications.filter(
+    if (filter === "all") return pendingItems;
+    if (filter === "unread") return pendingItems;
+    return pendingItems.filter(
       (item) => item.kind === "security" || item.kind === "bill" || item.kind === "budget" || item.kind === "savings"
     );
-  }, [filter, notifications]);
+  }, [filter, pendingItems]);
 
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed top-5 right-5 z-40 h-11 w-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-md flex items-center justify-center"
+        className={
+          anchored
+            ? `${hideOnMobile ? "hidden md:flex" : "flex"} fixed top-5 right-5 z-40 h-11 w-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-md items-center justify-center`
+            : "relative h-10 w-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm flex items-center justify-center"
+        }
         aria-label="Abrir notificaciones"
       >
         <Bell className="w-5 h-5 text-slate-700 dark:text-slate-200" />
@@ -165,7 +188,9 @@ export default function NotificationCenter() {
             aria-label="Cerrar panel de notificaciones"
           />
 
-          <div className="absolute top-16 right-4 md:right-10 w-[min(420px,calc(100%-1rem))] rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden">
+          <div
+            className={`absolute ${panelPositionClass || (anchored ? "top-16 right-4 md:right-10" : "top-14 right-0")} w-[min(420px,calc(100%-1rem))] rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden`}
+          >
             <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Notificaciones</h3>
@@ -187,7 +212,7 @@ export default function NotificationCenter() {
 
             <div className="px-5 py-3 bg-slate-50/70 dark:bg-slate-800/40 flex gap-2">
               {[
-                { key: "all", label: "Todas" },
+                { key: "all", label: "Pendientes" },
                 { key: "unread", label: "No leídas" },
                 { key: "alerts", label: "Alertas" },
               ].map((tab) => (
@@ -214,16 +239,30 @@ export default function NotificationCenter() {
                 </div>
               ) : (
                 visibleItems.map((item) => (
-                  <div key={item.id} className="relative p-4 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 flex gap-3">
+                  <div
+                    key={item.id}
+                    className={`relative p-4 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 flex gap-3 ${
+                      item.kind === "bill" && getBillUrgency(item) === "overdue"
+                        ? "bg-rose-50/80 dark:bg-rose-950/25"
+                        : ""
+                    }`}
+                  >
                     {item.unread ? <div className="absolute left-2 top-1/2 -translate-y-1/2 h-1.5 w-1.5 rounded-full bg-primary" /> : null}
                     <div className={`h-11 w-11 rounded-lg flex items-center justify-center shrink-0 ${iconColorByKind[item.kind]}`}>
                       {iconByKind[item.kind]}
                     </div>
                     <div className="flex-1 min-w-0">
+                      {(() => {
+                        const urgency = item.kind === "bill" ? getBillUrgency(item) : null;
+                        const timeClass = urgency ? billTimeColor[urgency] : "text-[11px] text-slate-400";
+
+                        return (
                       <div className="flex items-start justify-between gap-2">
                         <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">{item.title}</h4>
-                        <span className="text-[11px] text-slate-400 whitespace-nowrap">{item.time}</span>
+                        <span className={`text-[11px] whitespace-nowrap font-semibold ${timeClass}`}>{item.time}</span>
                       </div>
+                        );
+                      })()}
                       <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 leading-snug">{item.message}</p>
                       <div className="mt-2 flex items-center gap-3">
                         {item.actionHref ? (
@@ -232,7 +271,14 @@ export default function NotificationCenter() {
                           </Link>
                         ) : null}
                         {item.unread ? (
-                          <button type="button" onClick={() => markRead(item.id)} className="text-xs font-semibold text-slate-500 hover:text-slate-700 dark:hover:text-slate-200">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              markRead(item.id);
+                              dismiss(item.id);
+                            }}
+                            className="text-xs font-semibold text-slate-500 hover:text-slate-700 dark:hover:text-slate-200"
+                          >
                             Marcar leída
                           </button>
                         ) : null}

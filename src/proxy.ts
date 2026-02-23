@@ -1,14 +1,33 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_ROUTES = new Set(["/login", "/reset-password", "/terminos", "/privacidad", "/soporte", "/auth/callback"]);
+const PUBLIC_ROUTES = new Set(["/", "/login", "/reset-password", "/terminos", "/privacidad", "/soporte", "/auth/callback"]);
+
+function hasSupabaseAuthCookie(request: NextRequest) {
+  return request.cookies
+    .getAll()
+    .some(({ name }) => name.includes("auth-token") || name.includes("sb-"));
+}
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_ROUTES.has(pathname);
 
-  if (isPublic) {
+  const hasAuthCookie = hasSupabaseAuthCookie(request);
+
+  if (pathname === "/" && hasAuthCookie) {
+    const panelUrl = new URL("/panel", request.url);
+    return NextResponse.rewrite(panelUrl);
+  }
+
+  if (isPublic && pathname !== "/login") {
     return NextResponse.next({ request });
+  }
+
+  if (!isPublic && !hasAuthCookie) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("redirectTo", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   let response = NextResponse.next({
@@ -34,30 +53,38 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user: { id: string; app_metadata?: { role?: string } } | null = null;
 
-  if (!user && !isPublic) {
+  try {
+    const userResult = await Promise.race([
+      supabase.auth.getUser(),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
+    ]);
+
+    if (userResult && "data" in userResult) {
+      user = (userResult.data.user as { id: string; app_metadata?: { role?: string } } | null) ?? null;
+    }
+  } catch {
+    user = null;
+  }
+
+  if (user && pathname === "/login") {
+    return NextResponse.redirect(new URL("/panel", request.url));
+  }
+
+  if (!user && !isPublic && !hasAuthCookie) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirectTo", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  if (user && pathname === "/login") {
-    return NextResponse.redirect(new URL("/", request.url));
-  }
+  const needsProfileCheck = pathname.startsWith("/roles") || pathname.startsWith("/admin");
 
-  const needsProfileCheck =
-    pathname.startsWith("/roles") ||
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/informes");
-
-  let profile: { role: string | null; subscription_tier: string | null } | null = null;
+  let profile: { role: string | null } | null = null;
   if (user && needsProfileCheck) {
     const { data } = await supabase
       .from("profiles")
-      .select("role, subscription_tier")
+      .select("role")
       .eq("id", user.id)
       .maybeSingle();
     profile = data || null;
@@ -66,19 +93,8 @@ export async function proxy(request: NextRequest) {
   if (user && (pathname.startsWith("/roles") || pathname.startsWith("/admin"))) {
     const appRole = user.app_metadata?.role;
     if (appRole !== "admin" && profile?.role !== "admin") {
-      return NextResponse.redirect(new URL("/", request.url));
+      return NextResponse.redirect(new URL("/panel", request.url));
     }
-  }
-
-  if (
-    user &&
-    pathname.startsWith("/informes") &&
-    profile?.role !== "admin" &&
-    profile?.subscription_tier !== "premium"
-  ) {
-    const upgradeUrl = new URL("/upgrade", request.url);
-    upgradeUrl.searchParams.set("feature", "reports");
-    return NextResponse.redirect(upgradeUrl);
   }
 
   return response;

@@ -74,8 +74,8 @@ export default function LoginPage() {
   const router = useRouter();
 
   const redirectTo = useMemo(() => {
-    if (typeof window === "undefined") return "/";
-    return new URLSearchParams(window.location.search).get("redirectTo") || "/";
+    if (typeof window === "undefined") return "/panel";
+    return new URLSearchParams(window.location.search).get("redirectTo") || "/panel";
   }, []);
 
   useEffect(() => {

@@ -48,18 +48,42 @@ export default async function UpcomingBills() {
           displayBills.map((bill) => {
             // Asegurar un parseo correcto de fecha evitando la zona horaria local
             const dateObj = new Date(bill.due_date + "T00:00:00");
+            const today = new Date();
+            const dayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            const diffDays = Math.floor((dateObj.getTime() - dayStart.getTime()) / (1000 * 60 * 60 * 24));
+            const isPaid = bill.status === "Pagado";
+            const isOverdue = !isPaid && diffDays < 0;
+            const isDueToday = !isPaid && diffDays === 0;
             const month = dateObj
               .toLocaleDateString("es-ES", { month: "short" })
               .replace(".", "");
             const day = dateObj.toLocaleDateString("es-ES", { day: "2-digit" });
             const amountFormatted = formatCurrencyCOP(Number(bill.amount));
 
+            const statusLabel = isPaid
+              ? "PAGADA"
+              : isOverdue
+              ? "VENCIDA"
+              : isDueToday || bill.is_urgent
+              ? "URGENTE"
+              : "PENDIENTE";
+
             return (
               <div
                 key={bill.id}
-                className="flex items-center gap-4 p-3 border border-slate-100 dark:border-slate-800 rounded-lg group hover:border-accent-coral/50 transition-colors"
+                className={`flex items-center gap-4 p-3 border rounded-lg group transition-colors ${
+                  isOverdue
+                    ? "bg-rose-50 dark:bg-rose-950/25 border-rose-200 dark:border-rose-900/60"
+                    : "border-slate-100 dark:border-slate-800 hover:border-accent-coral/50"
+                }`}
               >
-                <div className="flex flex-col items-center justify-center w-12 h-12 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-500 group-hover:bg-accent-coral/10 group-hover:text-accent-coral">
+                <div
+                  className={`flex flex-col items-center justify-center w-12 h-12 rounded-lg text-slate-500 ${
+                    isOverdue
+                      ? "bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-300"
+                      : "bg-slate-50 dark:bg-slate-800 group-hover:bg-accent-coral/10 group-hover:text-accent-coral"
+                  }`}
+                >
                   <span className="text-[10px] font-bold uppercase">
                     {month}
                   </span>
@@ -77,10 +101,16 @@ export default async function UpcomingBills() {
                   <p className="text-sm font-bold">{amountFormatted}</p>
                   <span
                     className={`text-[10px] font-bold uppercase ${
-                      bill.is_urgent ? "text-accent-coral" : "text-slate-400"
+                      statusLabel === "VENCIDA"
+                        ? "text-rose-600 dark:text-rose-400"
+                        : statusLabel === "URGENTE"
+                        ? "text-accent-coral"
+                        : statusLabel === "PAGADA"
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-slate-400"
                     }`}
                   >
-                    {bill.status}
+                    {statusLabel}
                   </span>
                 </div>
               </div>

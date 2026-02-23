@@ -4,8 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ThemeToggle } from "./ThemeToggle";
-import LogoutButton from "./LogoutButton";
-import { roleLabel, tierLabel } from "@/utils/formatters";
+import { roleLabel } from "@/utils/formatters";
 import {
   Wallet,
   LayoutDashboard,
@@ -20,15 +19,14 @@ import {
   Settings,
   ShieldCheck,
   Shapes,
-  CreditCard,
 } from "lucide-react";
 import NotificationCenter from "./NotificationCenter";
+import MobileActionSheet from "./MobileActionSheet";
 
 export type SidebarProfile = {
   full_name: string | null;
   avatar_url: string | null;
   role: string | null;
-  subscription_tier: string | null;
   email: string | null;
 };
 
@@ -36,10 +34,7 @@ export function SidebarClient({ initialProfile }: { initialProfile: SidebarProfi
   const pathname = usePathname();
   const profile = initialProfile;
   const [isMobile, setIsMobile] = useState(false);
-  const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("financepro.sidebar.collapsed") === "1";
-  });
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -49,7 +44,11 @@ export function SidebarClient({ initialProfile }: { initialProfile: SidebarProfi
       setIsMobile(mobile);
       if (mobile) {
         setCollapsed(true);
+        return;
       }
+
+      const savedCollapsed = window.localStorage.getItem("financepro.sidebar.collapsed") === "1";
+      setCollapsed(savedCollapsed);
     };
 
     apply();
@@ -67,7 +66,7 @@ export function SidebarClient({ initialProfile }: { initialProfile: SidebarProfi
   };
 
   const navItems = [
-    { href: "/", label: "Panel", icon: LayoutDashboard },
+    { href: "/panel", label: "Panel", icon: LayoutDashboard },
     { href: "/categorias", label: "Categorías", icon: Shapes },
     { href: "/transacciones", label: "Transacciones", icon: ReceiptText },
     { href: "/presupuestos", label: "Presupuestos", icon: Landmark },
@@ -80,11 +79,7 @@ export function SidebarClient({ initialProfile }: { initialProfile: SidebarProfi
 
   const displayName =
     profile?.full_name?.trim() || profile?.email?.split("@")[0] || "Usuario";
-  const displayRole = `${roleLabel(profile?.role)} ${tierLabel(profile?.subscription_tier)}`;
-  const canManageSubscription =
-    profile?.role === "admin" ||
-    profile?.subscription_tier === "pro" ||
-    profile?.subscription_tier === "premium";
+  const displayRole = roleLabel(profile?.role);
 
   const linkClass = (href: string) => {
     const isActive = pathname === href;
@@ -97,9 +92,10 @@ export function SidebarClient({ initialProfile }: { initialProfile: SidebarProfi
 
   return (
     <>
-      <NotificationCenter />
+      <NotificationCenter hideOnMobile />
+      <MobileActionSheet profile={initialProfile} />
 
-      <aside className={`h-[100dvh] border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col shrink-0 transition-all duration-300 ${collapsed ? "w-24" : "w-64"}`}>
+      <aside className={`hidden md:flex h-[100dvh] border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex-col shrink-0 transition-all duration-300 ${collapsed ? "w-24" : "w-64"}`}>
         <div className="p-4 md:p-6 flex items-center gap-3">
           <div className={`flex items-center justify-between w-full ${collapsed ? "gap-0" : "gap-3"}`}>
             <button
@@ -124,7 +120,6 @@ export function SidebarClient({ initialProfile }: { initialProfile: SidebarProfi
               ) : null}
             </button>
 
-            {!collapsed && !isMobile ? <LogoutButton compact /> : null}
           </div>
         </div>
 
@@ -132,9 +127,6 @@ export function SidebarClient({ initialProfile }: { initialProfile: SidebarProfi
           {[
             ...navItems,
             ...(profile?.role === "admin" ? [{ href: "/roles", label: "Roles", icon: ShieldCheck }] : []),
-            ...(profile?.role === "admin"
-              ? [{ href: "/admin/suscripciones", label: "Suscripciones", icon: CreditCard }]
-              : []),
           ].map((item) => {
             const Icon = item.icon;
             return (
@@ -155,12 +147,6 @@ export function SidebarClient({ initialProfile }: { initialProfile: SidebarProfi
             <Settings className="w-5 h-5" />
             {!collapsed && !isMobile ? "Configuración" : null}
           </Link>
-          {canManageSubscription ? (
-            <Link href="/suscripcion" className={linkClass("/suscripcion") + " mb-2"}>
-              <CreditCard className="w-5 h-5" />
-              {!collapsed && !isMobile ? "Suscripción" : null}
-            </Link>
-          ) : null}
 
           {!collapsed && !isMobile ? (
             <div className="mb-4">

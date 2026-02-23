@@ -4,22 +4,6 @@ import { formatCurrencyCOP } from "@/utils/formatters";
 
 export default async function TopCards() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("monthly_income")
-    .eq("id", user?.id ?? "")
-    .maybeSingle();
-
-  const rawMonthlyIncome = profile?.monthly_income;
-  const configuredMonthlyIncome =
-    typeof rawMonthlyIncome === "number"
-      ? rawMonthlyIncome
-      : typeof rawMonthlyIncome === "string" && rawMonthlyIncome.trim()
-      ? Number(rawMonthlyIncome)
-      : 0;
 
   // 1. Obtener todas las transacciones de Supabase
   const { data: transactions, error } = await supabase
@@ -57,7 +41,7 @@ export default async function TopCards() {
     });
   }
 
-  const monthlyIncome = configuredMonthlyIncome > 0 ? configuredMonthlyIncome : totalIncome;
+  const monthlyIncome = totalIncome;
 
   // El Saldo Total es: Ingreso mensual objetivo - Gastos del mes
   const totalBalance = monthlyIncome - totalExpense;
@@ -99,7 +83,7 @@ export default async function TopCards() {
         </h3>
         <div className="flex items-center gap-1 text-accent-emerald text-sm font-medium">
           <TrendingUp className="w-4 h-4" />
-          <span>{configuredMonthlyIncome > 0 ? "Definido en tu perfil" : "Tomado de ingresos registrados"}</span>
+          <span>Tomado de ingresos registrados</span>
         </div>
       </div>
 

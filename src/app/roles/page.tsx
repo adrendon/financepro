@@ -1,7 +1,7 @@
 import { Sidebar } from "@/components/Sidebar";
 import { createClient } from "@/utils/supabase/server";
 
-type RoleBucket = "admin" | "premium" | "free";
+type RoleBucket = "admin" | "user";
 
 const roleCards: Record<RoleBucket, { title: string; description: string; features: string[] }> = {
   admin: {
@@ -9,22 +9,16 @@ const roleCards: Record<RoleBucket, { title: string; description: string; featur
     description: "Control total de la plataforma y configuración avanzada.",
     features: ["Gestión completa", "Acceso total a módulos", "Configuración prioritaria"],
   },
-  premium: {
-    title: "Usuario Premium",
-    description: "Análisis y herramientas avanzadas para seguimiento financiero.",
-    features: ["Informes avanzados", "Gestión completa de metas", "Experiencia mejorada"],
-  },
-  free: {
-    title: "Usuario Free",
+  user: {
+    title: "Usuario",
     description: "Funciones esenciales para organizar finanzas personales.",
     features: ["Resumen general", "Registro de movimientos", "Control básico de presupuesto"],
   },
 };
 
-const resolveBucket = (role: string | null, tier: string | null): RoleBucket => {
+const resolveBucket = (role: string | null): RoleBucket => {
   if (role === "admin") return "admin";
-  if (tier === "premium" || tier === "pro") return "premium";
-  return "free";
+  return "user";
 };
 
 export default async function RolesPage() {
@@ -35,11 +29,11 @@ export default async function RolesPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, email, role, subscription_tier")
+    .select("full_name, email, role")
     .eq("id", user?.id ?? "")
     .maybeSingle();
 
-  const currentBucket = resolveBucket(profile?.role ?? null, profile?.subscription_tier ?? null);
+  const currentBucket = resolveBucket(profile?.role ?? null);
   const displayName = profile?.full_name?.trim() || profile?.email?.split("@")[0] || "Usuario";
 
   return (

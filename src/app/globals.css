@@ -6,12 +6,22 @@
     --color-primary: #144bb8;
     --color-background-light: #f6f6f8;
     --color-background-dark: #0f172a;
+    --color-slate-custom: #1e293b;
     --color-accent-emerald: #10b981;
     --color-accent-coral: #fb7185;
     --font-display: "Inter", sans-serif;
 }
 
 @layer base {
+    @keyframes slideUp {
+        from {
+            transform: translateY(100%);
+        }
+        to {
+            transform: translateY(0);
+        }
+    }
+
     body {
         font-family: var(--font-display);
     }
@@ -54,6 +64,15 @@
 }
 
 @layer utilities {
+    .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+
     .chart-ring {
         background: conic-gradient(
             #144bb8 0% 45%,

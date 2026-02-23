@@ -4,44 +4,25 @@ import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { Moon, Sun } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import AdminSubscriptionsManager from "@/components/AdminSubscriptionsManager";
 import Link from "next/link";
 import AppToast from "@/components/AppToast";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { formatMoneyInput, parseMoneyInput } from "@/utils/formatters";
 
 type SettingsProfile = {
   id: string;
   role: string | null;
-  subscription_tier: string | null;
-  subscription_status: string | null;
   language: string | null;
   currency: string | null;
   date_format: string | null;
   two_factor_enabled: boolean | null;
   alerts_by_email: boolean | null;
   profile_visible: boolean | null;
-  monthly_income?: number | null;
-  monthly_income_onboarded?: boolean | null;
 } | null;
-
-type AdminProfileRow = {
-  id: string;
-  full_name: string | null;
-  email: string | null;
-  role: "admin" | "user" | null;
-  subscription_tier: "free" | "pro" | "premium" | null;
-  subscription_status: "active" | "trialing" | "past_due" | "canceled" | null;
-};
 
 export default function SettingsManager({
   profile,
-  adminProfiles,
-  initialMonthlyIncome,
 }: {
   profile: SettingsProfile;
-  adminProfiles: AdminProfileRow[];
-  initialMonthlyIncome: number | null;
 }) {
   const scrollToSection = (event: React.MouseEvent<HTMLAnchorElement>, sectionId: string) => {
     event.preventDefault();
@@ -54,11 +35,6 @@ export default function SettingsManager({
   const [language, setLanguage] = useState(profile?.language || "es");
   const [currency, setCurrency] = useState(profile?.currency || "COP");
   const [dateFormat, setDateFormat] = useState(profile?.date_format || "DD/MM/AAAA");
-  const [monthlyIncome, setMonthlyIncome] = useState(
-    initialMonthlyIncome != null && Number.isFinite(initialMonthlyIncome)
-      ? formatMoneyInput(String(initialMonthlyIncome))
-      : ""
-  );
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const { resolvedTheme, setTheme } = useTheme();
@@ -67,26 +43,10 @@ export default function SettingsManager({
   const [profileVisible, setProfileVisible] = useState(profile?.profile_visible ?? true);
   const [pushNotifications, setPushNotifications] = useState(true);
   const [inAppNotifications, setInAppNotifications] = useState(true);
-  const [activeSection, setActiveSection] = useState<"general" | "notificaciones" | "seguridad" | "privacidad" | "suscripcion">("general");
+  const [activeSection, setActiveSection] = useState<"general" | "notificaciones" | "seguridad" | "privacidad">("general");
   const [toast, setToast] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
   const [processingDeleteAccount, setProcessingDeleteAccount] = useState(false);
-
-  const checkoutUrl =
-    process.env.NEXT_PUBLIC_MONTHLY_CHECKOUT_URL || "/soporte?plan=premium-mensual";
-  const billingPortalUrl =
-    process.env.NEXT_PUBLIC_BILLING_PORTAL_URL ||
-    process.env.NEXT_PUBLIC_MONTHLY_CHECKOUT_URL ||
-    "/soporte?topic=billing";
-  const pauseUrl =
-    process.env.NEXT_PUBLIC_PAUSE_SUBSCRIPTION_URL ||
-    "https://wa.me/573000000000?text=Hola%2C%20quiero%20pausar%20mi%20suscripci%C3%B3n%20temporalmente";
-  const cancelUrl =
-    process.env.NEXT_PUBLIC_CANCEL_SUBSCRIPTION_URL ||
-    "https://wa.me/573000000000?text=Hola%2C%20quiero%20cancelar%20mi%20suscripci%C3%B3n";
-  const whatsappPayUrl =
-    process.env.NEXT_PUBLIC_WHATSAPP_UPGRADE_URL ||
-    "https://wa.me/573000000000?text=Hola%2C%20quiero%20pagar%20mi%20suscripci%C3%B3n%20Premium";
   const deleteAccountUrl =
     process.env.NEXT_PUBLIC_DELETE_ACCOUNT_URL ||
     "/soporte?topic=eliminar-cuenta";
@@ -109,13 +69,6 @@ export default function SettingsManager({
 
     const supabase = createClient();
 
-    const parsedMonthlyIncome = parseMoneyInput(monthlyIncome);
-    if (!Number.isFinite(parsedMonthlyIncome) || parsedMonthlyIncome <= 0) {
-      setSaving(false);
-      setMessage("El ingreso mensual debe ser un valor válido mayor a 0.");
-      return;
-    }
-
     const { error } = await supabase
       .from("profiles")
       .update({
@@ -125,8 +78,6 @@ export default function SettingsManager({
         two_factor_enabled: twoFactor,
         alerts_by_email: alertsByEmail,
         profile_visible: profileVisible,
-        monthly_income: parsedMonthlyIncome,
-        monthly_income_onboarded: true,
       })
       .eq("id", profile.id);
 
@@ -158,7 +109,6 @@ export default function SettingsManager({
       { id: "cfg-notificaciones", key: "notificaciones" as const },
       { id: "cfg-seguridad", key: "seguridad" as const },
       { id: "cfg-privacidad", key: "privacidad" as const },
-      { id: "cfg-suscripcion", key: "suscripcion" as const },
     ];
 
     const observer = new IntersectionObserver(
@@ -182,7 +132,7 @@ export default function SettingsManager({
     return () => observer.disconnect();
   }, []);
 
-  const navClass = (key: "general" | "notificaciones" | "seguridad" | "privacidad" | "suscripcion") =>
+  const navClass = (key: "general" | "notificaciones" | "seguridad" | "privacidad") =>
     `pb-3 border-b-2 whitespace-nowrap ${
       activeSection === key
         ? "border-primary text-primary font-semibold"
@@ -208,7 +158,6 @@ export default function SettingsManager({
           <a href="#cfg-notificaciones" onClick={(event) => scrollToSection(event, "cfg-notificaciones")} className={navClass("notificaciones")}>Notificaciones</a>
           <a href="#cfg-seguridad" onClick={(event) => scrollToSection(event, "cfg-seguridad")} className={navClass("seguridad")}>Seguridad</a>
           <a href="#cfg-privacidad" onClick={(event) => scrollToSection(event, "cfg-privacidad")} className={navClass("privacidad")}>Privacidad</a>
-          <a href="#cfg-suscripcion" onClick={(event) => scrollToSection(event, "cfg-suscripcion")} className={navClass("suscripcion")}>Suscripción</a>
         </nav>
       </div>
 
@@ -241,17 +190,6 @@ export default function SettingsManager({
               <option value="MM/DD/AAAA">MM/DD/AAAA</option>
               <option value="AAAA-MM-DD">AAAA-MM-DD</option>
             </select>
-          </div>
-          <div>
-            <label className="text-sm font-semibold mb-2 block">Ingreso mensual</label>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={monthlyIncome}
-              onChange={(e) => setMonthlyIncome(formatMoneyInput(e.target.value))}
-              placeholder="Ej: 3500000"
-              className="w-full bg-slate-50 dark:bg-slate-800 border rounded-lg px-4 py-2.5 text-sm"
-            />
           </div>
           <div>
             <label className="text-sm font-semibold mb-2 block">Tema</label>
@@ -411,68 +349,6 @@ export default function SettingsManager({
           </button>
         </div>
       </section>
-
-      <section id="cfg-suscripcion" className="scroll-mt-24 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
-        <h3 className="text-lg font-bold">Plan actual</h3>
-        <p className="text-sm text-slate-500">Gestiona beneficios, método de pago y estado de tu suscripción.</p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-          <div className="rounded-lg border p-4">
-            <p className="text-slate-500">Plan</p>
-            <p className="font-bold uppercase">{profile?.subscription_tier || "free"}</p>
-          </div>
-          <div className="rounded-lg border p-4">
-            <p className="text-slate-500">Estado</p>
-            <p className="font-bold uppercase">{profile?.subscription_status || "active"}</p>
-          </div>
-          <div className="rounded-lg border p-4">
-            <p className="text-slate-500">Rol</p>
-            <p className="font-bold uppercase">{profile?.role || "user"}</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-          <div className="rounded-lg border p-4">
-            <p className="text-slate-500">Método de pago</p>
-            <p className="font-bold">Tarjeta / Plataforma externa</p>
-            <p className="text-xs text-slate-500 mt-1">Gestiona si pagas por tarjeta, débito o pasarela vinculada.</p>
-          </div>
-          <div className="rounded-lg border p-4">
-            <p className="text-slate-500">Cobro recurrente</p>
-            <p className="font-bold">{profile?.subscription_status === "canceled" ? "Desactivado" : "Activo"}</p>
-            <p className="text-xs text-slate-500 mt-1">Puedes pausar o cancelar la renovación automática.</p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <a href={billingPortalUrl} target="_blank" rel="noopener noreferrer" className="px-4 py-2.5 border border-slate-300 dark:border-slate-700 rounded-lg font-semibold">
-            Cambiar método de pago
-          </a>
-          <a href={checkoutUrl} target="_blank" rel="noopener noreferrer" className="px-4 py-2.5 bg-primary text-white rounded-lg font-semibold">
-            Pagar mensualidad
-          </a>
-          <a href={whatsappPayUrl} target="_blank" rel="noopener noreferrer" className="px-4 py-2.5 bg-emerald-600 text-white rounded-lg font-semibold">
-            Pagar ahora (WhatsApp)
-          </a>
-          <a href={pauseUrl} target="_blank" rel="noopener noreferrer" className="px-4 py-2.5 bg-amber-500 text-white rounded-lg font-semibold">
-            Pausar suscripción
-          </a>
-          <a href={cancelUrl} target="_blank" rel="noopener noreferrer" className="px-4 py-2.5 bg-rose-600 text-white rounded-lg font-semibold">
-            Cancelar suscripción
-          </a>
-          {(profile?.subscription_tier === "pro" || profile?.subscription_tier === "premium" || profile?.role === "admin") ? (
-            <Link href="/suscripcion" className="px-4 py-2.5 border border-slate-300 dark:border-slate-700 rounded-lg font-semibold">
-              Gestionar suscripción
-            </Link>
-          ) : null}
-        </div>
-      </section>
-
-      {profile?.role === "admin" ? (
-        <section id="admin-suscripciones" className="space-y-3">
-          <h3 className="text-lg font-bold">Administrar suscripciones</h3>
-          <AdminSubscriptionsManager profiles={adminProfiles} />
-        </section>
-      ) : null}
 
       <ConfirmDialog
         open={confirmDeleteAccount}

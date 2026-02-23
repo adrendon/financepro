@@ -8,4 +8,6 @@ export type AppNotification = {
   actionLabel?: string;
   actionHref?: string;
   progress?: number;
+  dueDateISO?: string;
+  isPaid?: boolean;
 };

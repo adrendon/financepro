@@ -36,61 +36,35 @@ export default async function NotificacionesPage() {
   const billNotifications: AppNotification[] = (billData || []).map((item) => {
     const dueDate = new Date(`${item.due_date}T00:00:00`);
     const now = new Date();
-    const diffDays = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    const pending = item.status !== "Pagado";
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const diffDays = Math.floor((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    const isPaid = item.status === "Pagado";
+
+    const message = isPaid
+      ? `Pagada el ${dueDate.toLocaleDateString("es-CO")}. Importe $${Math.round(Number(item.amount || 0)).toLocaleString("es-CO")}.`
+      : diffDays < 0
+      ? `Venció el ${dueDate.toLocaleDateString("es-CO")} (${Math.abs(diffDays)} día(s) de atraso). Importe $${Math.round(Number(item.amount || 0)).toLocaleString("es-CO")}.`
+      : `Vence ${dueDate.toLocaleDateString("es-CO")} (${diffDays} día(s)). Importe $${Math.round(Number(item.amount || 0)).toLocaleString("es-CO")}.`;
+
+    const time = isPaid ? "pagada" : diffDays < 0 ? "vencida" : diffDays === 0 ? "vence hoy" : "próxima";
 
     return {
       id: `bill-${item.id}`,
       title: `Factura pendiente: ${item.title}`,
-      message: `Vence ${dueDate.toLocaleDateString("es-CO")} (${diffDays >= 0 ? `${diffDays} día(s)` : "vencida"}). Importe $${Math.round(Number(item.amount || 0)).toLocaleString("es-CO")}.`,
-      time: diffDays <= 1 ? "hoy" : "próxima",
-      unread: pending,
+      message,
+      time,
+      unread: !isPaid,
       kind: "bill",
       actionLabel: "Pagar ahora",
       actionHref: `/facturas/${item.id}`,
+      dueDateISO: item.due_date,
+      isPaid,
     };
   });
 
-  const budgetWarning: AppNotification = {
-    id: "budget-warning",
-    title: "Aviso de Presupuesto",
-    message: "Has alcanzado el 80% de tu límite mensual en una categoría activa.",
-    time: "hace 1 día",
-    unread: true,
-    kind: "budget",
-    actionLabel: "Ajustar presupuesto",
-    actionHref: "/presupuestos",
-    progress: 80,
-  };
-
-  const securityWarning: AppNotification = {
-    id: "security-warning",
-    title: "Alerta de seguridad: inicio de sesión",
-    message: "Se detectó un inicio de sesión desde un nuevo dispositivo.",
-    time: "hace 5 min",
-    unread: true,
-    kind: "security",
-    actionLabel: "Revisar seguridad",
-    actionHref: "/perfil#perfil-seguridad",
-  };
-
-  const paymentInfo: AppNotification = {
-    id: "payment-info",
-    title: "Suscripción renovada",
-    message: "Tu suscripción se renovó automáticamente. Puedes ver método de pago y recurrencia en Configuración.",
-    time: "hace 5 días",
-    unread: false,
-    kind: "payment",
-    actionLabel: "Gestionar suscripción",
-    actionHref: "/configuracion#cfg-suscripcion",
-  };
-
   const initialNotifications: AppNotification[] = [
-    securityWarning,
     ...billNotifications,
-    budgetWarning,
     ...txNotifications,
-    paymentInfo,
   ];
 
   return (

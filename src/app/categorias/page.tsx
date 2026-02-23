@@ -16,12 +16,12 @@ export default async function CategoriasPage() {
       .order("name", { ascending: true }),
     supabase
       .from("profiles")
-      .select("role, subscription_tier")
+      .select("role")
       .eq("id", user?.id ?? "")
       .maybeSingle(),
   ]);
 
-  const canManage = canManageCategories(profile?.role ?? null, profile?.subscription_tier ?? null);
+  const canManage = canManageCategories(profile?.role ?? null);
 
   return (
     <div className="flex h-screen overflow-hidden">

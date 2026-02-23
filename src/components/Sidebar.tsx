@@ -12,7 +12,7 @@ export async function Sidebar() {
   if (user?.id) {
     const { data } = await supabase
       .from("profiles")
-      .select("full_name, avatar_url, role, subscription_tier, email")
+      .select("full_name, avatar_url, role, email")
       .eq("id", user.id)
       .maybeSingle();
 

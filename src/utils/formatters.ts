@@ -18,12 +18,6 @@ export const roleLabel = (role: string | null | undefined) => {
   return "Usuario";
 };
 
-export const tierLabel = (tier: string | null | undefined) => {
-  if (tier === "premium") return "Premium";
-  if (tier === "pro") return "Pro";
-  return "Free";
-};
-
 export const normalizeMoneyInput = (raw: string) => raw.replace(/\D/g, "");
 
 export const formatMoneyInput = (raw: string) => {

@@ -16,6 +16,7 @@ import { useSharedNotifications } from "@/hooks/useSharedNotifications";
 import type { AppNotification } from "@/types/notifications";
 
 type FilterKind = "all" | "unread" | "security" | "budget" | "bill";
+type BillUrgency = "paid" | "overdue" | "today" | "upcoming";
 
 const iconByKind = {
   security: <ShieldAlert className="w-5 h-5" />,
@@ -35,6 +36,29 @@ const iconColorByKind = {
   system: "bg-sky-100 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400",
 };
 
+function getBillUrgency(item: AppNotification): BillUrgency {
+  if (item.isPaid) return "paid";
+  if (!item.dueDateISO) return "upcoming";
+
+  const dueDate = new Date(`${item.dueDateISO}T00:00:00`);
+  if (Number.isNaN(dueDate.getTime())) return "upcoming";
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.floor((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return "overdue";
+  if (diffDays === 0) return "today";
+  return "upcoming";
+}
+
+const billTimeColor: Record<BillUrgency, string> = {
+  paid: "text-emerald-600 dark:text-emerald-400",
+  overdue: "text-rose-600 dark:text-rose-400",
+  today: "text-amber-600 dark:text-amber-400",
+  upcoming: "text-slate-500 dark:text-slate-400",
+};
+
 export default function NotificationsManager({
   initialNotifications,
 }: {
@@ -46,8 +70,13 @@ export default function NotificationsManager({
   const [filter, setFilter] = useState<FilterKind>("all");
   const [removingIds, setRemovingIds] = useState<string[]>([]);
 
+  const pendingNotifications = useMemo(
+    () => notifications.filter((item) => item.unread),
+    [notifications]
+  );
+
   const filteredNotifications = useMemo(() => {
-    return notifications.filter((item) => {
+    return pendingNotifications.filter((item) => {
       const matchesQuery = `${item.title} ${item.message}`
         .toLowerCase()
         .includes(query.trim().toLowerCase());
@@ -56,12 +85,12 @@ export default function NotificationsManager({
         filter === "all"
           ? true
           : filter === "unread"
-          ? item.unread
+          ? true
           : item.kind === filter;
 
       return matchesQuery && matchesFilter;
     });
-  }, [notifications, query, filter]);
+  }, [pendingNotifications, query, filter]);
 
   const dismissWithAnimation = (id: string) => {
     if (removingIds.includes(id)) return;
@@ -102,7 +131,7 @@ export default function NotificationsManager({
 
         <div className="flex gap-2 overflow-x-auto w-full md:w-auto">
           {[
-            { key: "all", label: "Todas" },
+            { key: "all", label: "Pendientes" },
             { key: "unread", label: "No leídas" },
             { key: "security", label: "Seguridad" },
             { key: "budget", label: "Presupuestos" },
@@ -134,7 +163,11 @@ export default function NotificationsManager({
           {filteredNotifications.map((item) => (
             <article
               key={item.id}
-              className={`relative flex gap-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-all duration-200 ${
+              className={`relative flex gap-4 rounded-xl border p-4 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-all duration-200 ${
+                item.kind === "bill" && getBillUrgency(item) === "overdue"
+                  ? "border-rose-200 dark:border-rose-900/60 bg-rose-50/80 dark:bg-rose-950/25"
+                  : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+              } ${
                 removingIds.includes(item.id) ? "opacity-0 -translate-y-1 scale-[0.98]" : "opacity-100"
               }`}
             >
@@ -145,7 +178,13 @@ export default function NotificationsManager({
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white">{item.title}</h3>
-                  <span className="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">{item.time}</span>
+                  <span
+                    className={`text-xs whitespace-nowrap font-semibold ${
+                      item.kind === "bill" ? billTimeColor[getBillUrgency(item)] : "text-slate-500 dark:text-slate-400"
+                    }`}
+                  >
+                    {item.time}
+                  </span>
                 </div>
                 <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">{item.message}</p>
 
