@@ -92,7 +92,7 @@ export default function PublicLanding() {
                     onClick={(event) => scrollToSection(event, item.id)}
                     className={`relative px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-all duration-300 shrink-0 ${
                       isActive
-                        ? "bg-primary/20 text-primary shadow-[0_0_0_1px_rgba(20,75,184,0.35)]"
+                        ? "text-primary"
                         : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-white/5"
                     }`}
                   >
@@ -123,26 +123,6 @@ export default function PublicLanding() {
             </div>
 
           </div>
-
-          <nav className="md:hidden pb-2 grid grid-cols-2 gap-1.5">
-            {SECTION_LINKS.map((item) => {
-              const isActive = activeSection === item.id;
-              return (
-                <a
-                  key={item.id}
-                  href={`#${item.id}`}
-                  onClick={(event) => scrollToSection(event, item.id)}
-                  className={`text-center px-2.5 py-1.5 rounded-lg text-[11px] font-semibold leading-tight transition-all duration-300 ${
-                    isActive
-                      ? "bg-primary/20 text-primary shadow-[0_0_0_1px_rgba(20,75,184,0.35)]"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-white/5"
-                  }`}
-                >
-                  {item.mobileLabel ?? item.label}
-                </a>
-              );
-            })}
-          </nav>
         </div>
       </header>
 
@@ -259,7 +239,7 @@ export default function PublicLanding() {
 
         <section id="testimonios" className="py-24">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-bold text-center mb-16">Amado por +10,000 ahorradores</h2>
+            <h2 className="text-3xl font-bold text-center mb-16">Amado por +100 ahorradores</h2>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               <article className="p-6 bg-white dark:bg-slate-custom/20 rounded-xl border border-slate-200 dark:border-white/5 italic text-slate-600 dark:text-slate-200">
                 &ldquo;Pasaba 3 horas al mes actualizando mi Excel. Con FinancePro ahora solo reviso el dashboard 5 minutos a la semana. ¡Increíble!&rdquo;
@@ -329,9 +309,8 @@ export default function PublicLanding() {
                 <h5 className="font-bold mb-6">Producto</h5>
                 <ul className="space-y-3 text-sm text-slate-600 dark:text-slate-300">
                   <li><a className="hover:text-primary transition-colors" href="#caracteristicas">Características</a></li>
-                  <li><a className="hover:text-primary transition-colors" href="#">Seguridad</a></li>
-                  <li><a className="hover:text-primary transition-colors" href="#">App Móvil</a></li>
-                  <li><a className="hover:text-primary transition-colors" href="#">API para desarrolladores</a></li>
+                  <li><a className="hover:text-primary transition-colors" href="#comparativa">Comparativa</a></li>
+                  <li><a className="hover:text-primary transition-colors" href="#testimonios">Testimonios</a></li>
                 </ul>
               </div>
 
@@ -340,7 +319,6 @@ export default function PublicLanding() {
                 <ul className="space-y-3 text-sm text-slate-600 dark:text-slate-300">
                   <li><Link className="hover:text-primary transition-colors" href="/privacidad">Privacidad</Link></li>
                   <li><Link className="hover:text-primary transition-colors" href="/terminos">Términos de Uso</Link></li>
-                  <li><a className="hover:text-primary transition-colors" href="#">Cookies</a></li>
                   <li><Link className="hover:text-primary transition-colors" href="/soporte">Soporte</Link></li>
                 </ul>
               </div>

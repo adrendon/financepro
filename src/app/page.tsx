@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import PublicLanding from "@/components/PublicLanding";
 
 export default async function Home() {
-  redirect("/panel");
+  return <PublicLanding />;
 }
