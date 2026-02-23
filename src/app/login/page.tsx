@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
+import { pushNotification } from "@/utils/notifications";
 import { useRouter } from "next/navigation";
 import { Chrome, Eye, EyeOff, Github, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -150,6 +151,17 @@ export default function LoginPage() {
       setError(getAuthErrorMessage(signInError.message, "signin"));
       return;
     }
+
+    pushNotification({
+      id: `auth-login-${Date.now()}`,
+      title: "Inicio de sesión exitoso",
+      message: `Entraste con ${email}.`,
+      time: "ahora",
+      unread: true,
+      kind: "security",
+      actionLabel: "Ir al panel",
+      actionHref: "/panel",
+    });
 
     router.push(redirectTo);
     router.refresh();

@@ -38,6 +38,7 @@ import {
   CATEGORY_ICON_OPTIONS,
   CategoryScope,
 } from "@/utils/categories";
+import { pushNotification } from "@/utils/notifications";
 
 const scopeLabel: Record<CategoryScope, string> = {
   transaction: "Transacciones",
@@ -102,6 +103,13 @@ const renderCategoryIcon = (iconName: string, className?: string) => {
     default:
       return <Tag className={className} />;
   }
+};
+
+const getScopePath = (scope: CategoryScope) => {
+  if (scope === "budget") return "/presupuestos";
+  if (scope === "bill") return "/facturas";
+  if (scope === "saving") return "/ahorros";
+  return "/transacciones";
 };
 
 export default function CategoryManager({
@@ -176,15 +184,37 @@ export default function CategoryManager({
     setOpen(false);
     setEditing(null);
     setIconQuery("");
+
+    pushNotification({
+      id: `category-action-${editing ? "edit" : "create"}-${Date.now()}`,
+      title: editing ? `Categoría actualizada: ${payload.name}` : `Categoría creada: ${payload.name}`,
+      message: `Se aplicó en ${scopeLabel[payload.applies_to]}.`,
+      time: "ahora",
+      unread: true,
+      kind: "system",
+      actionLabel: "Ver categorías",
+      actionHref: "/categorias",
+    });
   };
 
   const remove = async (id: number) => {
     if (!canManage) return;
     if (!confirm("¿Eliminar categoría?")) return;
 
+    const removedCategory = categories.find((category) => category.id === id);
     const supabase = createClient();
     const { error } = await supabase.from("categories").delete().eq("id", id);
     if (!error) {
+      pushNotification({
+        id: `category-action-delete-${id}-${Date.now()}`,
+        title: "Categoría eliminada",
+        message: `${removedCategory?.name || "La categoría"} fue eliminada de ${removedCategory ? scopeLabel[removedCategory.applies_to] : "la sección"}.`,
+        time: "ahora",
+        unread: true,
+        kind: "system",
+        actionLabel: "Ver módulo",
+        actionHref: removedCategory ? getScopePath(removedCategory.applies_to) : "/categorias",
+      });
       setCategories((prev) => prev.filter((category) => category.id !== id));
     }
   };

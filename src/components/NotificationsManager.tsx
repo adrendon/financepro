@@ -161,10 +161,13 @@ export default function NotificationsManager({
       ) : (
         <div className="space-y-3">
           {filteredNotifications.map((item) => (
+            (() => {
+              const isOverdueBill = item.kind === "bill" && getBillUrgency(item) === "overdue";
+              return (
             <article
               key={item.id}
               className={`relative flex gap-4 rounded-xl border p-4 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-all duration-200 ${
-                item.kind === "bill" && getBillUrgency(item) === "overdue"
+                isOverdueBill
                   ? "border-rose-200 dark:border-rose-900/60 bg-rose-50/80 dark:bg-rose-950/25"
                   : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
               } ${
@@ -177,7 +180,14 @@ export default function NotificationsManager({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">{item.title}</h3>
+                  <div className="min-w-0 flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">{item.title}</h3>
+                    {isOverdueBill ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">
+                        VENCIDA
+                      </span>
+                    ) : null}
+                  </div>
                   <span
                     className={`text-xs whitespace-nowrap font-semibold ${
                       item.kind === "bill" ? billTimeColor[getBillUrgency(item)] : "text-slate-500 dark:text-slate-400"
@@ -219,6 +229,8 @@ export default function NotificationsManager({
                 </div>
               </div>
             </article>
+              );
+            })()
           ))}
         </div>
       )}

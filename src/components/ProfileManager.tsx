@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
+import { pushNotification } from "@/utils/notifications";
 import { Camera, IdCard, Shield, BellRing } from "lucide-react";
 import AppToast from "@/components/AppToast";
 import LogoutButton from "@/components/LogoutButton";
@@ -137,6 +138,16 @@ export default function ProfileManager({
 
     setProfileMessage("Perfil actualizado correctamente.");
     showToast("success", "¡Cambios guardados con éxito!");
+    pushNotification({
+      id: `profile-action-save-${Date.now()}`,
+      title: "Perfil actualizado",
+      message: "Tus datos personales fueron actualizados correctamente.",
+      time: "ahora",
+      unread: true,
+      kind: "system",
+      actionLabel: "Ver perfil",
+      actionHref: "/perfil",
+    });
   };
 
   const updatePassword = async (event: React.FormEvent) => {
@@ -189,6 +200,16 @@ export default function ProfileManager({
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
+    pushNotification({
+      id: `profile-action-password-${Date.now()}`,
+      title: "Contraseña actualizada",
+      message: "Se cambió la contraseña de tu cuenta correctamente.",
+      time: "ahora",
+      unread: true,
+      kind: "security",
+      actionLabel: "Revisar seguridad",
+      actionHref: "/perfil#perfil-seguridad",
+    });
   };
 
   const uploadAvatarFile = async (file: File) => {
@@ -224,6 +245,16 @@ export default function ProfileManager({
 
       setAvatarUrl(data.secure_url);
       setProfileMessage("Avatar actualizado. Guarda cambios para confirmar.");
+      pushNotification({
+        id: `profile-action-avatar-${Date.now()}`,
+        title: "Avatar cargado",
+        message: "Tu nueva imagen está lista; guarda cambios para aplicarla al perfil.",
+        time: "ahora",
+        unread: true,
+        kind: "system",
+        actionLabel: "Ver perfil",
+        actionHref: "/perfil",
+      });
     } catch {
       setProfileMessage("Error al subir avatar.");
     } finally {

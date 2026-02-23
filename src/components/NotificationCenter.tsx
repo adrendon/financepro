@@ -115,7 +115,7 @@ export default function NotificationCenter({
         const time = isPaid
           ? "pagada"
           : diffDays < 0
-          ? `vencida hace ${Math.abs(diffDays)} día(s)`
+          ? "ya venció"
           : diffDays === 0
           ? "vence hoy"
           : `vence en ${diffDays} día(s)`;
@@ -123,7 +123,7 @@ export default function NotificationCenter({
         const message = isPaid
           ? `Pagada el ${dueDate.toLocaleDateString("es-CO")}. Monto $${Math.round(Number(bill.amount || 0)).toLocaleString("es-CO")}.`
           : diffDays < 0
-          ? `Venció el ${dueDate.toLocaleDateString("es-CO")}. Monto $${Math.round(Number(bill.amount || 0)).toLocaleString("es-CO")}.`
+          ? `Ya venció el ${dueDate.toLocaleDateString("es-CO")}. Monto $${Math.round(Number(bill.amount || 0)).toLocaleString("es-CO")}.`
           : `Vence ${dueDate.toLocaleDateString("es-CO")}. Monto $${Math.round(Number(bill.amount || 0)).toLocaleString("es-CO")}.`;
 
         return {
@@ -239,10 +239,13 @@ export default function NotificationCenter({
                 </div>
               ) : (
                 visibleItems.map((item) => (
+                  (() => {
+                    const isOverdueBill = item.kind === "bill" && getBillUrgency(item) === "overdue";
+                    return (
                   <div
                     key={item.id}
                     className={`relative p-4 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 flex gap-3 ${
-                      item.kind === "bill" && getBillUrgency(item) === "overdue"
+                      isOverdueBill
                         ? "bg-rose-50/80 dark:bg-rose-950/25"
                         : ""
                     }`}
@@ -258,7 +261,14 @@ export default function NotificationCenter({
 
                         return (
                       <div className="flex items-start justify-between gap-2">
-                        <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">{item.title}</h4>
+                        <div className="min-w-0 flex items-center gap-2">
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-tight truncate">{item.title}</h4>
+                          {isOverdueBill ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">
+                              VENCIDA
+                            </span>
+                          ) : null}
+                        </div>
                         <span className={`text-[11px] whitespace-nowrap font-semibold ${timeClass}`}>{item.time}</span>
                       </div>
                         );
@@ -285,6 +295,8 @@ export default function NotificationCenter({
                       </div>
                     </div>
                   </div>
+                    );
+                  })()
                 ))
               )}
             </div>

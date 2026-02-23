@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { Moon, Sun } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { pushNotification } from "@/utils/notifications";
 import Link from "next/link";
 import AppToast from "@/components/AppToast";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -89,6 +90,16 @@ export default function SettingsManager({
 
     setSaving(false);
     setMessage("Preferencias guardadas.");
+    pushNotification({
+      id: `settings-action-save-${Date.now()}`,
+      title: "Preferencias guardadas",
+      message: "Se actualizaron idioma, moneda, fecha y preferencias generales.",
+      time: "ahora",
+      unread: true,
+      kind: "system",
+      actionLabel: "Ver configuración",
+      actionHref: "/configuracion",
+    });
   };
 
   const saveToggles = async (
@@ -145,6 +156,16 @@ export default function SettingsManager({
     setProcessingDeleteAccount(false);
     setConfirmDeleteAccount(false);
     showToast("success", "Solicitud enviada. Te llevaremos al canal de gestión.");
+    pushNotification({
+      id: `settings-action-delete-account-request-${Date.now()}`,
+      title: "Solicitud de eliminación de cuenta",
+      message: "Se inició el proceso de eliminación permanente de la cuenta.",
+      time: "ahora",
+      unread: true,
+      kind: "security",
+      actionLabel: "Ver soporte",
+      actionHref: "/soporte",
+    });
     window.open(deleteAccountUrl, "_blank", "noopener,noreferrer");
   };
 
@@ -220,6 +241,16 @@ export default function SettingsManager({
               setAlertsByEmail(next);
               await saveToggles({ alerts_by_email: next });
               showToast("success", `Notificaciones por email ${next ? "activadas" : "desactivadas"}.`);
+              pushNotification({
+                id: `settings-action-email-alerts-${Date.now()}`,
+                title: "Preferencia de email actualizada",
+                message: `Notificaciones por email ${next ? "activadas" : "desactivadas"}.`,
+                time: "ahora",
+                unread: true,
+                kind: "system",
+                actionLabel: "Ver configuración",
+                actionHref: "/configuracion#cfg-notificaciones",
+              });
             }}
             className={`px-4 py-2 rounded-lg text-sm font-semibold ${alertsByEmail ? "bg-primary text-white" : "border"}`}
           >
@@ -238,6 +269,16 @@ export default function SettingsManager({
               const next = !pushNotifications;
               setPushNotifications(next);
               showToast("success", `Notificaciones push ${next ? "activadas" : "desactivadas"}.`);
+              pushNotification({
+                id: `settings-action-push-${Date.now()}`,
+                title: "Notificaciones push",
+                message: `Notificaciones push ${next ? "activadas" : "desactivadas"}.`,
+                time: "ahora",
+                unread: true,
+                kind: "system",
+                actionLabel: "Ver configuración",
+                actionHref: "/configuracion#cfg-notificaciones",
+              });
             }}
             className={`px-4 py-2 rounded-lg text-sm font-semibold ${pushNotifications ? "bg-primary text-white" : "border"}`}
           >
@@ -257,6 +298,16 @@ export default function SettingsManager({
                 const next = !inAppNotifications;
                 setInAppNotifications(next);
                 showToast("success", `Centro de notificaciones ${next ? "activo" : "silenciado"}.`);
+                pushNotification({
+                  id: `settings-action-center-${Date.now()}`,
+                  title: "Centro de notificaciones",
+                  message: `Centro de notificaciones ${next ? "activo" : "silenciado"}.`,
+                  time: "ahora",
+                  unread: true,
+                  kind: "system",
+                  actionLabel: "Ver notificaciones",
+                  actionHref: "/notificaciones",
+                });
               }}
               className={`px-4 py-2 rounded-lg text-sm font-semibold ${inAppNotifications ? "bg-primary text-white" : "border"}`}
             >
@@ -291,6 +342,16 @@ export default function SettingsManager({
               const next = !twoFactor;
               setTwoFactor(next);
               await saveToggles({ two_factor_enabled: next });
+              pushNotification({
+                id: `settings-action-2fa-${Date.now()}`,
+                title: "Autenticación de dos factores",
+                message: `Se ${next ? "activó" : "desactivó"} la preferencia de 2FA.`,
+                time: "ahora",
+                unread: true,
+                kind: "security",
+                actionLabel: "Ver seguridad",
+                actionHref: "/configuracion#cfg-seguridad",
+              });
             }}
             className={`px-4 py-2 rounded-lg text-sm font-semibold ${twoFactor ? "bg-primary text-white" : "border"}`}
           >
@@ -311,6 +372,16 @@ export default function SettingsManager({
               const next = !profileVisible;
               setProfileVisible(next);
               await saveToggles({ profile_visible: next });
+              pushNotification({
+                id: `settings-action-profile-visible-${Date.now()}`,
+                title: "Privacidad de perfil",
+                message: `Tu perfil ahora está ${next ? "visible" : "oculto"}.`,
+                time: "ahora",
+                unread: true,
+                kind: "system",
+                actionLabel: "Ver privacidad",
+                actionHref: "/configuracion#cfg-privacidad",
+              });
             }}
             className={`px-4 py-2 rounded-lg text-sm font-semibold ${profileVisible ? "bg-primary text-white" : "border"}`}
           >
@@ -328,6 +399,16 @@ export default function SettingsManager({
               const next = !inAppNotifications;
               setInAppNotifications(next);
               showToast("success", `Análisis de actividad ${next ? "activado" : "desactivado"}.`);
+              pushNotification({
+                id: `settings-action-activity-analysis-${Date.now()}`,
+                title: "Análisis de actividad",
+                message: `Análisis de actividad ${next ? "activado" : "desactivado"}.`,
+                time: "ahora",
+                unread: true,
+                kind: "system",
+                actionLabel: "Ver privacidad",
+                actionHref: "/configuracion#cfg-privacidad",
+              });
             }}
             className={`px-4 py-2 rounded-lg text-sm font-semibold ${inAppNotifications ? "bg-primary text-white" : "border"}`}
           >

@@ -43,10 +43,10 @@ export default async function NotificacionesPage() {
     const message = isPaid
       ? `Pagada el ${dueDate.toLocaleDateString("es-CO")}. Importe $${Math.round(Number(item.amount || 0)).toLocaleString("es-CO")}.`
       : diffDays < 0
-      ? `Venció el ${dueDate.toLocaleDateString("es-CO")} (${Math.abs(diffDays)} día(s) de atraso). Importe $${Math.round(Number(item.amount || 0)).toLocaleString("es-CO")}.`
+      ? `Ya venció el ${dueDate.toLocaleDateString("es-CO")} (${Math.abs(diffDays)} día(s) de atraso). Importe $${Math.round(Number(item.amount || 0)).toLocaleString("es-CO")}.`
       : `Vence ${dueDate.toLocaleDateString("es-CO")} (${diffDays} día(s)). Importe $${Math.round(Number(item.amount || 0)).toLocaleString("es-CO")}.`;
 
-    const time = isPaid ? "pagada" : diffDays < 0 ? "vencida" : diffDays === 0 ? "vence hoy" : "próxima";
+    const time = isPaid ? "pagada" : diffDays < 0 ? "ya venció" : diffDays === 0 ? "vence hoy" : "próxima";
 
     return {
       id: `bill-${item.id}`,

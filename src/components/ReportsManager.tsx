@@ -14,9 +14,43 @@ type Tx = {
   merchant?: string;
 };
 
+type Investment = {
+  name: string;
+  investment_type: string;
+  invested_amount: number;
+  started_at: string | null;
+  created_at?: string | null;
+};
+
+type Bill = {
+  title: string;
+  amount: number;
+  due_date: string;
+  status: string;
+};
+
+type Movement = {
+  date: string;
+  type: "income" | "expense";
+  category: string;
+  description: string;
+  amount: number;
+};
+
 type Range = "3m" | "6m" | "12m" | "10y" | "custom";
 
-const DONUT_COLORS = ["#2563EB", "#14B8A6", "#F59E0B", "#94A3B8"];
+type DonutSlice = {
+  name: string;
+  amount: number;
+  percentage: number;
+  color: string;
+};
+
+type DonutTooltip = {
+  slice: DonutSlice;
+  x: number;
+  y: number;
+};
 
 function inRange(dateStr: string, range: Range, customFrom: string, customTo: string, now: Date, yearsWindow: number) {
   const dateValue = new Date(`${dateStr}T00:00:00`);
@@ -30,122 +64,184 @@ function inRange(dateStr: string, range: Range, customFrom: string, customTo: st
   return dateValue >= new Date(`${customFrom}T00:00:00`) && dateValue <= new Date(`${customTo}T23:59:59`);
 }
 
-export default function ReportsManager({ initialTransactions, todayISO }: { initialTransactions: Tx[]; todayISO: string }) {
+function getSegmentColor(index: number, total: number) {
+  const hue = Math.round((index * (360 / Math.max(total, 1))) % 360);
+  return `hsl(${hue} 72% 52%)`;
+}
+
+function polarToCartesian(cx: number, cy: number, radius: number, angleDeg: number) {
+  const angleRad = ((angleDeg - 90) * Math.PI) / 180;
+  return {
+    x: cx + radius * Math.cos(angleRad),
+    y: cy + radius * Math.sin(angleRad),
+  };
+}
+
+function describeArc(cx: number, cy: number, radius: number, startAngle: number, endAngle: number) {
+  const start = polarToCartesian(cx, cy, radius, endAngle);
+  const end = polarToCartesian(cx, cy, radius, startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`;
+}
+
+function lastMonths(referenceNow: Date, count: number) {
+  return Array.from({ length: count }, (_, idx) => {
+    const d = new Date(referenceNow.getFullYear(), referenceNow.getMonth() - (count - 1 - idx), 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const label = d.toLocaleDateString("es-ES", { month: "short" }).replace(".", "").toUpperCase();
+    return { key, label };
+  });
+}
+
+export default function ReportsManager({
+  initialTransactions,
+  initialInvestments,
+  initialBills,
+  todayISO,
+}: {
+  initialTransactions: Tx[];
+  initialInvestments: Investment[];
+  initialBills: Bill[];
+  todayISO: string;
+}) {
   const [range, setRange] = useState<Range>("6m");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [yearsWindow, setYearsWindow] = useState(1);
   const [visibleRecentRows, setVisibleRecentRows] = useState(20);
+  const [hoveredSlice, setHoveredSlice] = useState<DonutSlice | null>(null);
+  const [tooltip, setTooltip] = useState<DonutTooltip | null>(null);
   const referenceNow = useMemo(() => new Date(`${todayISO}T00:00:00`), [todayISO]);
 
+  const allMovements = useMemo<Movement[]>(() => {
+    const txRows: Movement[] = initialTransactions.map((tx) => ({
+      date: tx.date,
+      type: tx.type,
+      category: tx.category || "General",
+      description: tx.merchant || (tx.type === "income" ? "Ingreso registrado" : "Gasto registrado"),
+      amount: Math.abs(Number(tx.amount) || 0),
+    }));
+
+    const investmentRows = initialInvestments
+      .map((inv): Movement | null => {
+        const date = inv.started_at || inv.created_at?.slice(0, 10);
+        if (!date) return null;
+        return {
+          date,
+          type: "expense" as const,
+          category: inv.investment_type || "Inversiones",
+          description: inv.name || "Inversión",
+          amount: Math.abs(Number(inv.invested_amount) || 0),
+        };
+      })
+      .filter((row): row is Movement => Boolean(row));
+
+    const billRows: Movement[] = initialBills
+      .filter((bill) => bill.status !== "Pagado")
+      .map((bill) => ({
+        date: bill.due_date,
+        type: "expense" as const,
+        category: "Facturas",
+        description: bill.title || "Factura",
+        amount: Math.abs(Number(bill.amount) || 0),
+      }));
+
+    return [...txRows, ...investmentRows, ...billRows];
+  }, [initialTransactions, initialInvestments, initialBills]);
+
   const filtered = useMemo(
-    () => initialTransactions.filter((tx) => inRange(tx.date, range, customFrom, customTo, referenceNow, yearsWindow)),
-    [initialTransactions, range, customFrom, customTo, referenceNow, yearsWindow]
+    () => allMovements.filter((row) => inRange(row.date, range, customFrom, customTo, referenceNow, yearsWindow)),
+    [allMovements, range, customFrom, customTo, referenceNow, yearsWindow]
   );
 
   const totalIncome = filtered
-    .filter((tx) => tx.type === "income")
-    .reduce((sum, tx) => sum + Math.abs(Number(tx.amount) || 0), 0);
+    .filter((row) => row.type === "income")
+    .reduce((sum, row) => sum + row.amount, 0);
   const totalExpense = filtered
-    .filter((tx) => tx.type === "expense")
-    .reduce((sum, tx) => sum + Math.abs(Number(tx.amount) || 0), 0);
+    .filter((row) => row.type === "expense")
+    .reduce((sum, row) => sum + row.amount, 0);
 
   const monthMap = useMemo(() => {
-    const map = new Map<string, { key: string; label: string; income: number; expense: number }>();
+    const map = new Map<string, { income: number; expense: number }>();
 
-    filtered.forEach((tx) => {
-      const dateValue = new Date(`${tx.date}T00:00:00`);
-      const key = `${dateValue.getFullYear()}-${String(dateValue.getMonth() + 1).padStart(2, "0")}`;
-      const label = dateValue
-        .toLocaleDateString("es-ES", { month: "short" })
-        .replace(".", "")
-        .toUpperCase();
-
-      if (!map.has(key)) map.set(key, { key, label, income: 0, expense: 0 });
-      const row = map.get(key)!;
-      const amount = Math.abs(Number(tx.amount) || 0);
-
-      if (tx.type === "income") row.income += amount;
-      if (tx.type === "expense") row.expense += amount;
+    filtered.forEach((row) => {
+      const d = new Date(`${row.date}T00:00:00`);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (!map.has(key)) map.set(key, { income: 0, expense: 0 });
+      const item = map.get(key)!;
+      if (row.type === "income") item.income += row.amount;
+      if (row.type === "expense") item.expense += row.amount;
     });
 
-    return Array.from(map.values()).sort((a, b) => a.key.localeCompare(b.key));
+    return map;
   }, [filtered]);
 
-  const monthlyExpenses = monthMap.slice(-6).map((row) => ({ label: row.label, value: row.expense }));
-  const maxMonthlyExpense = Math.max(1, ...monthlyExpenses.map((row) => row.value));
+  const monthSeries = useMemo(() => {
+    return lastMonths(referenceNow, 6).map((month) => {
+      const values = monthMap.get(month.key) || { income: 0, expense: 0 };
+      return {
+        key: month.key,
+        label: month.label,
+        income: values.income,
+        expense: values.expense,
+      };
+    });
+  }, [monthMap, referenceNow]);
 
-  const comparisonSeries = monthMap.slice(-6);
-  const maxComparisonValue = Math.max(1, ...comparisonSeries.flatMap((row) => [row.income, row.expense]));
+  const monthlyExpenses = monthSeries.map((row) => ({ label: row.label, value: row.expense }));
+  const maxMonthlyExpense = Math.max(1, ...monthlyExpenses.map((row) => row.value));
+  const maxComparisonValue = Math.max(1, ...monthSeries.flatMap((row) => [row.income, row.expense]));
 
   const categoryDistribution = useMemo(() => {
     const byCategory = new Map<string, number>();
-    filtered.forEach((tx) => {
-      if (tx.type !== "expense") return;
-      const key = tx.category || "Otros";
-      byCategory.set(key, (byCategory.get(key) || 0) + Math.abs(Number(tx.amount) || 0));
+    filtered.forEach((row) => {
+      if (row.type !== "expense") return;
+      byCategory.set(row.category, (byCategory.get(row.category) || 0) + row.amount);
     });
 
     const total = Array.from(byCategory.values()).reduce((sum, value) => sum + value, 0);
-    const ordered = Array.from(byCategory.entries())
-      .map(([name, amount]) => ({ name, amount, percentage: total > 0 ? Math.round((amount / total) * 100) : 0 }))
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 4);
+    const ordered: DonutSlice[] = Array.from(byCategory.entries())
+      .map(([name, amount], index) => ({
+        name,
+        amount,
+        percentage: total > 0 ? (amount / total) * 100 : 0,
+        color: getSegmentColor(index, byCategory.size),
+      }))
+      .sort((a, b) => b.amount - a.amount);
 
     return { ordered, total };
   }, [filtered]);
 
   const categoryTotalLabel = useMemo(() => formatCurrencyCOP(categoryDistribution.total), [categoryDistribution.total]);
-  const categoryTotalClass = useMemo(() => {
-    const textLength = categoryTotalLabel.length;
-    if (textLength >= 16) return "text-xs";
-    if (textLength >= 14) return "text-sm";
-    if (textLength >= 12) return "text-base";
-    if (textLength >= 10) return "text-lg";
-    if (textLength >= 8) return "text-xl";
-    return "text-2xl";
-  }, [categoryTotalLabel]);
-
-  const donutGradient = useMemo(() => {
-    if (categoryDistribution.ordered.length === 0) {
-      return "conic-gradient(#1e293b 0deg 360deg)";
-    }
-
-    let current = 0;
-    const segments = categoryDistribution.ordered.map((item, index) => {
-      const size = (item.percentage / 100) * 360;
-      const start = current;
-      const end = current + size;
-      current = end;
-      return `${DONUT_COLORS[index % DONUT_COLORS.length]} ${start}deg ${end}deg`;
-    });
-
-    if (current < 360) segments.push(`#1e293b ${current}deg 360deg`);
-    return `conic-gradient(${segments.join(", ")})`;
-  }, [categoryDistribution.ordered]);
 
   const recentRows = [...filtered]
     .sort((a, b) => b.date.localeCompare(a.date))
-    .map((tx) => {
-      const dateValue = new Date(`${tx.date}T00:00:00`);
+    .map((row) => {
+      const dateValue = new Date(`${row.date}T00:00:00`);
       const isRecent = Math.ceil((referenceNow.getTime() - dateValue.getTime()) / (24 * 60 * 60 * 1000)) <= 7;
-      const status = tx.type === "income" ? "Completado" : isRecent ? "Pendiente" : "Completado";
+      const status = row.type === "income" ? "Completado" : isRecent ? "Pendiente" : "Completado";
       return {
         dateLabel: dateValue.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" }),
-        category: tx.category || "General",
-        description: tx.merchant || (tx.type === "income" ? "Ingreso registrado" : "Gasto registrado"),
-        amount: Number(tx.amount) || 0,
-        type: tx.type,
+        category: row.category,
+        description: row.description,
+        amount: row.amount,
+        type: row.type,
         status,
       };
     });
 
-  const exportRows = filtered.map((tx) => ({
-    Fecha: new Date(`${tx.date}T00:00:00`).toLocaleDateString("es-ES"),
-    Tipo: tx.type === "income" ? "Ingreso" : "Gasto",
-    Categoria: tx.category,
-    Monto: Math.round(Number(tx.amount)),
+  const exportRows = filtered.map((row) => ({
+    Fecha: new Date(`${row.date}T00:00:00`).toLocaleDateString("es-ES"),
+    Tipo: row.type === "income" ? "Ingreso" : "Gasto",
+    Categoria: row.category,
+    Descripcion: row.description,
+    Monto: Math.round(row.amount),
   }));
+
+  const donutSize = 208;
+  const donutStroke = 20;
+  const donutRadius = donutSize / 2 - donutStroke / 2;
+  let cursorAngle = 0;
 
   return (
     <>
@@ -212,21 +308,73 @@ export default function ReportsManager({ initialTransactions, todayISO }: { init
         <section className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-2xl border shadow-sm">
           <h3 className="text-2xl font-black mb-4">Distribución por Categoría</h3>
           <div className="flex items-center justify-center mb-5">
-            <div className="relative w-44 h-44 sm:w-52 sm:h-52 rounded-full" style={{ background: donutGradient }}>
-              <div className="absolute inset-4 rounded-full bg-white dark:bg-slate-900 flex flex-col items-center justify-center text-center">
-                <p className={`w-full max-w-full px-3 text-center whitespace-nowrap leading-none tracking-tight font-black truncate ${categoryTotalClass}`}>
-                  {categoryTotalLabel}
-                </p>
-                <p className="text-sm text-slate-500">TOTAL GASTADO</p>
+            <div className="relative w-[208px] h-[208px]">
+              <svg width={donutSize} height={donutSize} viewBox={`0 0 ${donutSize} ${donutSize}`}>
+                {categoryDistribution.ordered.length === 0 ? (
+                  <circle cx={donutSize / 2} cy={donutSize / 2} r={donutRadius} fill="none" stroke="#1e293b" strokeWidth={donutStroke} />
+                ) : (
+                  categoryDistribution.ordered.map((slice) => {
+                    const start = cursorAngle;
+                    const sweep = (slice.percentage / 100) * 360;
+                    const end = start + sweep;
+                    cursorAngle = end;
+
+                    return (
+                      <path
+                        key={slice.name}
+                        d={describeArc(donutSize / 2, donutSize / 2, donutRadius, start, end)}
+                        fill="none"
+                        stroke={slice.color}
+                        strokeWidth={donutStroke}
+                        strokeLinecap="butt"
+                        className="cursor-pointer transition-opacity hover:opacity-85"
+                        onMouseEnter={(event) => {
+                          setHoveredSlice(slice);
+                          setTooltip({ slice, x: event.clientX + 12, y: event.clientY - 12 });
+                        }}
+                        onMouseMove={(event) => {
+                          setTooltip({ slice, x: event.clientX + 12, y: event.clientY - 12 });
+                        }}
+                        onMouseLeave={() => {
+                          setHoveredSlice(null);
+                          setTooltip(null);
+                        }}
+                      />
+                    );
+                  })
+                )}
+              </svg>
+
+              <div className="absolute inset-4 rounded-full bg-white dark:bg-slate-900 flex flex-col items-center justify-center text-center px-3">
+                {hoveredSlice ? (
+                  <>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">Categoría</p>
+                    <p className="text-sm font-black wrap-break-word">{hoveredSlice.name}</p>
+                    <p className="text-xs text-slate-500">{formatCurrencyCOP(hoveredSlice.amount)} ({hoveredSlice.percentage.toFixed(1)}%)</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xl font-black">{categoryTotalLabel}</p>
+                    <p className="text-sm text-slate-500">TOTAL GASTADO</p>
+                  </>
+                )}
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-            {categoryDistribution.ordered.map((item, index) => (
-              <div key={item.name} className="flex items-center gap-2">
-                <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: DONUT_COLORS[index % DONUT_COLORS.length] }}></span>
-                <span className="text-slate-600 dark:text-slate-300 truncate">{item.name} ({item.percentage}%)</span>
+          <div className="max-h-52 overflow-auto space-y-2 text-sm pr-1">
+            {categoryDistribution.ordered.map((slice) => (
+              <div
+                key={slice.name}
+                className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                onMouseEnter={() => setHoveredSlice(slice)}
+                onMouseLeave={() => setHoveredSlice(null)}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: slice.color }}></span>
+                  <span className="truncate">{slice.name}</span>
+                </div>
+                <span className="font-semibold whitespace-nowrap">{slice.percentage.toFixed(1)}%</span>
               </div>
             ))}
           </div>
@@ -247,7 +395,7 @@ export default function ReportsManager({ initialTransactions, todayISO }: { init
 
         <div className="overflow-x-auto">
           <div className="h-80 min-w-[420px] grid grid-cols-6 items-end gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
-            {comparisonSeries.map((row) => (
+            {monthSeries.map((row) => (
               <div key={row.key} className="flex flex-col items-center gap-3 h-full justify-end">
                 <div className="w-full h-full flex items-end gap-1">
                   <div className="w-1/2 bg-primary rounded-t-md" style={{ height: `${(row.income / maxComparisonValue) * 100}%` }}></div>
@@ -308,6 +456,18 @@ export default function ReportsManager({ initialTransactions, todayISO }: { init
           </div>
         ) : null}
       </section>
+
+      {tooltip ? (
+        <div
+          className="fixed z-[70] pointer-events-none px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-slate-100 shadow-xl backdrop-blur-sm"
+          style={{ left: tooltip.x, top: tooltip.y }}
+        >
+          <p className="text-xs font-bold">{tooltip.slice.name}</p>
+          <p className="text-xs text-slate-600 dark:text-slate-300">
+            {formatCurrencyCOP(tooltip.slice.amount)} ({tooltip.slice.percentage.toFixed(1)}%)
+          </p>
+        </div>
+      ) : null}
 
       <div className="sr-only">
         Totales: {formatCurrencyCOP(totalIncome)} / {formatCurrencyCOP(totalExpense)}

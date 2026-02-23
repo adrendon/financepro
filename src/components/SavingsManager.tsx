@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { PlusCircle, PiggyBank, Target, Download, History, HandCoins, Pencil, Tag } from "lucide-react";
+import { PlusCircle, PiggyBank, Target, Download, History, HandCoins, Pencil, Tag, Trash2, Archive } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { exportToCSV } from "@/utils/export";
 import { uploadImage } from "@/utils/uploadImage";
 import Link from "next/link";
 import ImageDropzone from "@/components/ImageDropzone";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { formatCurrencyCOP, formatMoneyInput, parseMoneyInput } from "@/utils/formatters";
 import { AppCategory, resolveCategoryIcon } from "@/utils/categories";
 import AppToast from "@/components/AppToast";
@@ -85,6 +86,15 @@ export default function SavingsManager({
   const [showAllGoalsPanel, setShowAllGoalsPanel] = useState(false);
   const [visibleExtraGoals, setVisibleExtraGoals] = useState(3);
   const [visibleContributionRows, setVisibleContributionRows] = useState(12);
+  const [confirmDeleteGoalId, setConfirmDeleteGoalId] = useState<number | null>(null);
+  const [deletingGoal, setDeletingGoal] = useState(false);
+  const [confirmArchiveGoalId, setConfirmArchiveGoalId] = useState<number | null>(null);
+  const [archivingGoal, setArchivingGoal] = useState(false);
+
+  const activeGoals = useMemo(
+    () => goals.filter((goal) => goal.status !== "Archivado"),
+    [goals]
+  );
 
   const savingIconByCategory = useMemo(() => {
     const map = new Map<string, ReturnType<typeof resolveCategoryIcon>>();
@@ -102,16 +112,16 @@ export default function SavingsManager({
   };
 
   const summary = useMemo(() => {
-    const totalSavings = goals.reduce((sum, g) => sum + Number(g.current_amount || 0), 0);
-    const globalGoal = goals.reduce((sum, g) => sum + Number(g.target_amount || 0), 0);
-    const completed = goals.filter((g) => g.status === "Completado").length;
+    const totalSavings = activeGoals.reduce((sum, g) => sum + Number(g.current_amount || 0), 0);
+    const globalGoal = activeGoals.reduce((sum, g) => sum + Number(g.target_amount || 0), 0);
+    const completed = activeGoals.filter((g) => g.status === "Completado").length;
     return {
       totalSavings,
       globalGoal,
       completed,
       percentage: globalGoal > 0 ? Math.round((totalSavings / globalGoal) * 100) : 0,
     };
-  }, [goals]);
+  }, [activeGoals]);
 
   const performance = useMemo(() => {
     const reference = new Date(`${todayISO}T00:00:00`);
@@ -157,7 +167,7 @@ export default function SavingsManager({
     const dayMs = 24 * 60 * 60 * 1000;
     const today = new Date(`${todayISO}T00:00:00`);
 
-    const candidates = goals
+    const candidates = activeGoals
       .filter((goal) => goal.status !== "Completado" && goal.target_date)
       .map((goal) => {
         const targetDate = new Date(`${goal.target_date}T00:00:00`);
@@ -189,7 +199,7 @@ export default function SavingsManager({
       daysRemaining: Math.abs(closestOverdue.daysRemaining),
       overdue: true,
     };
-  }, [goals, todayISO]);
+  }, [activeGoals, todayISO]);
 
   const contributionRows = contributions
     .sort((a, b) => b.contribution_date.localeCompare(a.contribution_date))
@@ -241,6 +251,17 @@ export default function SavingsManager({
       ? await supabase.from("savings_goals").update(payload).eq("id", editingGoal.id)
       : await supabase.from("savings_goals").insert(payload);
     if (!error) {
+      pushNotification({
+        id: `saving-goal-action-${editingGoal ? "edit" : "create"}-${Date.now()}`,
+        title: editingGoal ? `Meta actualizada: ${payload.title}` : `Nueva meta de ahorro: ${payload.title}`,
+        message: `Objetivo ${formatCurrencyCOP(parsedTargetAmount)} (${payload.status.toLowerCase()}).`,
+        time: "ahora",
+        unread: true,
+        kind: "savings",
+        actionLabel: "Ver ahorros",
+        actionHref: "/ahorros",
+      });
+
       await reload();
       setIsNewGoalOpen(false);
       setEditingGoal(null);
@@ -341,6 +362,87 @@ export default function SavingsManager({
     });
   };
 
+  const removeGoal = async () => {
+    if (!confirmDeleteGoalId) return;
+
+    const goalToRemove = goals.find((goal) => goal.id === confirmDeleteGoalId);
+    setDeletingGoal(true);
+
+    const supabase = createClient();
+    const { error: deleteContributionsError } = await supabase
+      .from("savings_contributions")
+      .delete()
+      .eq("savings_goal_id", confirmDeleteGoalId);
+
+    if (deleteContributionsError) {
+      setDeletingGoal(false);
+      showToast("error", `No se pudieron eliminar los aportes relacionados: ${deleteContributionsError.message}`);
+      return;
+    }
+
+    const { error: deleteGoalError } = await supabase
+      .from("savings_goals")
+      .delete()
+      .eq("id", confirmDeleteGoalId);
+
+    setDeletingGoal(false);
+
+    if (deleteGoalError) {
+      showToast("error", `No se pudo eliminar la meta: ${deleteGoalError.message}`);
+      return;
+    }
+
+    await reload();
+    setConfirmDeleteGoalId(null);
+    showToast("success", "Meta eliminada correctamente.");
+
+    pushNotification({
+      id: `saving-goal-action-delete-${Date.now()}`,
+      title: "Meta de ahorro eliminada",
+      message: `${goalToRemove?.title || "La meta"} fue eliminada junto con sus aportaciones.`,
+      time: "ahora",
+      unread: true,
+      kind: "savings",
+      actionLabel: "Ver ahorros",
+      actionHref: "/ahorros",
+    });
+  };
+
+  const archiveGoal = async () => {
+    if (!confirmArchiveGoalId) return;
+
+    const goalToArchive = goals.find((goal) => goal.id === confirmArchiveGoalId);
+    setArchivingGoal(true);
+
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("savings_goals")
+      .update({ status: "Archivado" })
+      .eq("id", confirmArchiveGoalId);
+
+    setArchivingGoal(false);
+
+    if (error) {
+      showToast("error", `No se pudo archivar la meta: ${error.message}`);
+      return;
+    }
+
+    await reload();
+    setConfirmArchiveGoalId(null);
+    showToast("success", "Meta archivada correctamente.");
+
+    pushNotification({
+      id: `saving-goal-action-archive-${Date.now()}`,
+      title: "Meta de ahorro archivada",
+      message: `${goalToArchive?.title || "La meta"} fue archivada sin eliminar su historial.`,
+      time: "ahora",
+      unread: true,
+      kind: "savings",
+      actionLabel: "Ver ahorros",
+      actionHref: "/ahorros",
+    });
+  };
+
   const handleImageUpload = async (file: File) => {
     setUploadingImage(true);
     setUploadProgress(0);
@@ -358,8 +460,8 @@ export default function SavingsManager({
     }
   };
 
-  const featuredGoals = goals.slice(0, 3);
-  const extraGoals = goals.slice(3);
+  const featuredGoals = activeGoals.slice(0, 3);
+  const extraGoals = activeGoals.slice(3);
 
   const renderGoalCard = (goal: Goal) => {
     const currentAmount = Number(goal.current_amount || 0);
@@ -428,7 +530,7 @@ export default function SavingsManager({
           <div className="w-full bg-slate-200 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden mb-3">
             <div className={`${goal.color_class || "bg-primary"} h-full`} style={{ width: `${percentage}%` }}></div>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <button
               onClick={() => {
                 setSelectedGoal(goal);
@@ -445,6 +547,18 @@ export default function SavingsManager({
             >
               <Pencil className="w-4 h-4" /> Editar
             </button>
+            <button
+              onClick={() => setConfirmArchiveGoalId(goal.id)}
+              className="h-10 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 rounded-lg text-sm font-bold flex items-center justify-center gap-2"
+            >
+              <Archive className="w-4 h-4" /> Archivar
+            </button>
+            <button
+              onClick={() => setConfirmDeleteGoalId(goal.id)}
+              className="h-10 bg-rose-50 dark:bg-rose-900/20 text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-900/40 rounded-lg text-sm font-bold flex items-center justify-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" /> Eliminar
+            </button>
           </div>
         </div>
       </div>
@@ -454,6 +568,29 @@ export default function SavingsManager({
   return (
     <>
       <AppToast toast={toast} onClose={() => setToast(null)} />
+
+      <ConfirmDialog
+        open={Boolean(confirmDeleteGoalId)}
+        title="Eliminar meta de ahorro"
+        message="También se eliminarán las aportaciones asociadas a esta meta. Esta acción no se puede deshacer."
+        confirmLabel="Eliminar meta"
+        loading={deletingGoal}
+        loadingLabel="Eliminando..."
+        onCancel={() => setConfirmDeleteGoalId(null)}
+        onConfirm={removeGoal}
+      />
+
+      <ConfirmDialog
+        open={Boolean(confirmArchiveGoalId)}
+        title="Archivar meta de ahorro"
+        message="La meta se ocultará del panel principal, pero se conservará su historial de aportaciones."
+        confirmLabel="Archivar meta"
+        intent="primary"
+        loading={archivingGoal}
+        loadingLabel="Archivando..."
+        onCancel={() => setConfirmArchiveGoalId(null)}
+        onConfirm={archiveGoal}
+      />
 
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div className="flex flex-col gap-2">
@@ -496,7 +633,7 @@ export default function SavingsManager({
       </div>
 
       <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-        Metas activas: <span className="font-semibold text-slate-900 dark:text-slate-100">{goals.length}</span> objetivos registrados.
+        Metas activas: <span className="font-semibold text-slate-900 dark:text-slate-100">{activeGoals.length}</span> objetivos registrados.
       </p>
 
       <div className="mt-10">

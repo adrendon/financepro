@@ -10,6 +10,7 @@ import { AppCategory, resolveCategoryIcon } from "@/utils/categories";
 import AppToast from "@/components/AppToast";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { DEFAULT_PANEL_IMAGE, isValidImageUrl } from "@/utils/images";
+import { pushNotification } from "@/utils/notifications";
 
 type Budget = {
   id: number;
@@ -146,6 +147,19 @@ export default function BudgetManager({
     await reload();
     setIsOpen(false);
     setEditing(null);
+
+    const parsedLimit = parseMoneyInput(form.monthly_limit);
+    pushNotification({
+      id: `budget-action-${editing ? "edit" : "create"}-${Date.now()}`,
+      title: editing ? `Presupuesto actualizado: ${form.category}` : `Nuevo presupuesto: ${form.category}`,
+      message: `Límite mensual ${formatCurrencyCOP(parsedLimit)} para ${new Date(`${form.month_start}T00:00:00`).toLocaleDateString("es-CO", { month: "long", year: "numeric" })}.`,
+      time: "ahora",
+      unread: true,
+      kind: "budget",
+      actionLabel: "Ver presupuestos",
+      actionHref: "/presupuestos",
+    });
+
     showToast("success", editing ? "Presupuesto actualizado." : "Presupuesto creado.");
   };
 
@@ -155,6 +169,7 @@ export default function BudgetManager({
 
   const confirmDelete = async () => {
     if (!confirmDeleteId) return;
+    const removedBudget = budgets.find((budget) => budget.id === confirmDeleteId);
     setDeleting(true);
     const supabase = createClient();
     const id = confirmDeleteId;
@@ -165,6 +180,16 @@ export default function BudgetManager({
       setConfirmDeleteId(null);
       return;
     }
+    pushNotification({
+      id: `budget-action-delete-${id}-${Date.now()}`,
+      title: "Presupuesto eliminado",
+      message: `${removedBudget?.category || "El presupuesto"} se eliminó correctamente.`,
+      time: "ahora",
+      unread: true,
+      kind: "budget",
+      actionLabel: "Ver presupuestos",
+      actionHref: "/presupuestos",
+    });
     setBudgets((prev) => prev.filter((b) => b.id !== id));
     setConfirmDeleteId(null);
     showToast("success", "Presupuesto eliminado.");

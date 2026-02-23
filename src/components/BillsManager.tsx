@@ -6,6 +6,7 @@ import { createClient } from "@/utils/supabase/client";
 import { exportToCSV } from "@/utils/export";
 import { formatCurrencyCOP, formatMoneyInput, parseMoneyInput } from "@/utils/formatters";
 import { AppCategory, resolveCategoryIcon } from "@/utils/categories";
+import { pushNotification } from "@/utils/notifications";
 import Link from "next/link";
 import AppToast from "@/components/AppToast";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -58,11 +59,25 @@ export default function BillsManager({
   };
 
   const filtered = useMemo(() => {
-    return bills.filter((bill) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return bills
+      .filter((bill) => {
       const q = `${bill.title} ${bill.description || ""}`.toLowerCase().includes(query.toLowerCase());
       const s = statusFilter === "all" || bill.status === statusFilter;
       return q && s;
-    });
+      })
+      .sort((a, b) => {
+        const dateA = new Date(`${a.due_date}T00:00:00`).getTime();
+        const dateB = new Date(`${b.due_date}T00:00:00`).getTime();
+        const distanceA = Math.abs(dateA - today.getTime());
+        const distanceB = Math.abs(dateB - today.getTime());
+
+        if (distanceA !== distanceB) return distanceA - distanceB;
+
+        return dateB - dateA;
+      });
   }, [bills, query, statusFilter]);
 
   const displayedBills = filtered.slice(0, visibleBills);
@@ -137,6 +152,21 @@ export default function BillsManager({
     await reload();
     setOpen(false);
     setEditing(null);
+
+    const amount = parseMoneyInput(form.amount);
+    pushNotification({
+      id: `bill-action-${editing ? "edit" : "create"}-${Date.now()}`,
+      title: editing ? `Factura actualizada: ${form.title}` : `Factura creada: ${form.title}`,
+      message: `${editing ? "Se actualizó" : "Se registró"} con vencimiento ${new Date(`${form.due_date}T00:00:00`).toLocaleDateString("es-CO")} por ${formatCurrencyCOP(amount)}.`,
+      time: "ahora",
+      unread: true,
+      kind: "bill",
+      actionLabel: "Ver factura",
+      actionHref: "/facturas",
+      dueDateISO: form.due_date,
+      isPaid: form.status === "Pagado",
+    });
+
     showToast("success", editing ? "Factura actualizada." : "Factura creada con éxito.");
   };
 
@@ -156,6 +186,17 @@ export default function BillsManager({
       setConfirmDeleteId(null);
       return;
     }
+
+    pushNotification({
+      id: `bill-action-delete-${confirmDeleteId}-${Date.now()}`,
+      title: "Factura eliminada",
+      message: "El registro se eliminó correctamente.",
+      time: "ahora",
+      unread: true,
+      kind: "bill",
+      actionLabel: "Ver facturas",
+      actionHref: "/facturas",
+    });
 
     setBills((prev) => prev.filter((b) => b.id !== confirmDeleteId));
     setConfirmDeleteId(null);

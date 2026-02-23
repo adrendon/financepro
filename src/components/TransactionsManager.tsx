@@ -23,6 +23,7 @@ import NewTransactionModal from "./NewTransactionModal";
 import { exportToCSV, exportToExcel, exportToPDF } from "@/utils/export";
 import { formatCurrencyCOP, formatMoneyInput, parseMoneyInput } from "@/utils/formatters";
 import { AppCategory, resolveCategoryIcon } from "@/utils/categories";
+import { pushNotification } from "@/utils/notifications";
 import AppToast from "@/components/AppToast";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
@@ -327,6 +328,20 @@ export default function TransactionsManager({
     if (error) {
       showToast("error", `No se pudo eliminar: ${error.message}`);
     } else {
+      pushNotification({
+        id: `tx-action-delete-${Date.now()}`,
+        title: ids.length === 1 ? "Transacción eliminada" : "Transacciones eliminadas",
+        message:
+          ids.length === 1
+            ? `Se eliminó ${previousRows[0]?.merchant || "1 transacción"}.`
+            : `Se eliminaron ${ids.length} transacciones.`,
+        time: "ahora",
+        unread: true,
+        kind: "system",
+        actionLabel: "Ver transacciones",
+        actionHref: "/transacciones",
+      });
+
       setTransactions((prev) => prev.filter((tx) => !ids.includes(tx.id)));
       setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
       armUndo({ kind: "delete", rows: previousRows });
@@ -446,6 +461,16 @@ export default function TransactionsManager({
     }
 
     setTransactions((prev) => prev.map((tx) => (selectedIds.includes(tx.id) ? { ...tx, ...payload } : tx)));
+    pushNotification({
+      id: `tx-action-bulk-update-${Date.now()}`,
+      title: "Edición masiva aplicada",
+      message: `Se actualizaron ${selectedIds.length} transacciones.`,
+      time: "ahora",
+      unread: true,
+      kind: "system",
+      actionLabel: "Revisar cambios",
+      actionHref: "/transacciones",
+    });
     armUndo({ kind: "bulk-update", rows: previousRows });
     void appendHistory("bulk-update", `Editadas ${selectedIds.length} transacciones`, { ids: selectedIds, payload });
     setSelectedIds([]);
@@ -645,6 +670,16 @@ export default function TransactionsManager({
 
     const inserted = data as Tx;
     setTransactions((prev) => [inserted, ...prev].sort((a, b) => b.date.localeCompare(a.date)));
+    pushNotification({
+      id: `tx-action-recurring-${inserted.id}-${Date.now()}`,
+      title: `Transacción recurrente: ${template.name}`,
+      message: `${template.type === "income" ? "Ingreso" : "Gasto"} por ${formatCurrencyCOP(Number(template.amount) || 0)} generado para ${new Date(`${date}T00:00:00`).toLocaleDateString("es-CO")}.`,
+      time: "ahora",
+      unread: true,
+      kind: "system",
+      actionLabel: "Ver transacciones",
+      actionHref: "/transacciones",
+    });
     armUndo({ kind: "create", createdId: inserted.id });
     void appendHistory("recurring", `Generada recurrente: ${template.name} (${date})`, { template_id: template.id, tx_id: inserted.id });
     return true;
@@ -1051,6 +1086,16 @@ export default function TransactionsManager({
         onSaved={async (mode, savedTx) => {
           if (savedTx) {
             if (mode === "create") {
+              pushNotification({
+                id: `tx-action-create-${savedTx.id}-${Date.now()}`,
+                title: "Transacción creada",
+                message: `${savedTx.merchant}: ${savedTx.type === "income" ? "ingreso" : "gasto"} por ${formatCurrencyCOP(Number(savedTx.amount) || 0)}.`,
+                time: "ahora",
+                unread: true,
+                kind: "system",
+                actionLabel: "Ver transacciones",
+                actionHref: "/transacciones",
+              });
               setTransactions((prev) => [savedTx, ...prev].sort((a, b) => b.date.localeCompare(a.date)));
               armUndo({ kind: "create", createdId: savedTx.id });
               void appendHistory("create", `Transacción creada: ${savedTx.merchant}`, {
@@ -1058,6 +1103,16 @@ export default function TransactionsManager({
                 merchant: savedTx.merchant,
               });
             } else {
+              pushNotification({
+                id: `tx-action-edit-${savedTx.id}-${Date.now()}`,
+                title: "Transacción editada",
+                message: `${savedTx.merchant}: ${savedTx.type === "income" ? "ingreso" : "gasto"} actualizado a ${formatCurrencyCOP(Number(savedTx.amount) || 0)}.`,
+                time: "ahora",
+                unread: true,
+                kind: "system",
+                actionLabel: "Ver transacciones",
+                actionHref: "/transacciones",
+              });
               setTransactions((prev) => prev.map((item) => (item.id === savedTx.id ? savedTx : item)));
               void appendHistory("edit", `Transacción editada: ${savedTx.merchant}`, { tx_id: savedTx.id });
             }

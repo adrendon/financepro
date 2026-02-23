@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { MoreHorizontal } from "lucide-react";
-import type { AppCategory } from "@/utils/categories";
 import { formatCurrencyCOP } from "@/utils/formatters";
 
 type TxRow = {
@@ -32,6 +31,38 @@ type Item = {
   amount: number;
   percentage: number;
   color: string;
+};
+
+type BillImpactMode = "due_or_overdue" | "pending_month" | "all_pending";
+
+function getBillImpactMode(): BillImpactMode {
+  const raw = (process.env.NEXT_PUBLIC_PANEL_BILLS_MODE || "pending_month").toLowerCase();
+  if (raw === "pending_month" || raw === "all_pending") return raw;
+  return "due_or_overdue";
+}
+
+function shouldIncludeBill(
+  bill: BillRow,
+  mode: BillImpactMode,
+  todayISO: string,
+  monthStartISO: string,
+  nextMonthStartISO: string
+) {
+  const pending = bill.status !== "Pagado";
+  if (!pending) return false;
+
+  if (mode === "all_pending") return true;
+  if (mode === "pending_month") {
+    return bill.due_date >= monthStartISO && bill.due_date < nextMonthStartISO;
+  }
+
+  return bill.due_date <= todayISO;
+}
+
+type TooltipState = {
+  item: Item;
+  x: number;
+  y: number;
 };
 
 function getSegmentColor(index: number, total: number) {
@@ -66,11 +97,14 @@ export default function SpendingBreakdown({
   todayISO: string;
 }) {
   const [hovered, setHovered] = useState<Item | null>(null);
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
 
   const { items, total } = useMemo(() => {
     const now = new Date(`${todayISO}T00:00:00`);
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const month = now.getMonth();
     const year = now.getFullYear();
+    const billImpactMode = getBillImpactMode();
 
     const expenseByCategory = new Map<string, number>();
 
@@ -78,7 +112,8 @@ export default function SpendingBreakdown({
       if (tx.type !== "expense") return;
       const txDate = new Date(`${tx.date}T00:00:00`);
       const isCurrentMonth = txDate.getMonth() === month && txDate.getFullYear() === year;
-      if (!isCurrentMonth) return;
+      const isElapsedDay = txDate <= today;
+      if (!isCurrentMonth || !isElapsedDay) return;
 
       const key = tx.category || "Sin categoría";
       expenseByCategory.set(key, (expenseByCategory.get(key) || 0) + Math.abs(Number(tx.amount) || 0));
@@ -89,7 +124,8 @@ export default function SpendingBreakdown({
       if (!sourceDate) return;
       const invDate = new Date(`${sourceDate}T00:00:00`);
       const isCurrentMonth = invDate.getMonth() === month && invDate.getFullYear() === year;
-      if (!isCurrentMonth) return;
+      const isElapsedDay = invDate <= today;
+      if (!isCurrentMonth || !isElapsedDay) return;
 
       const key = inv.investment_type?.trim() || "Inversiones";
       expenseByCategory.set(key, (expenseByCategory.get(key) || 0) + Math.abs(Number(inv.invested_amount) || 0));
@@ -100,8 +136,7 @@ export default function SpendingBreakdown({
     const nextMonthStartISO = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}-01`;
 
     bills.forEach((bill) => {
-      if (bill.status === "Pagado") return;
-      if (!(bill.due_date >= monthStartISO && bill.due_date < nextMonthStartISO)) return;
+      if (!shouldIncludeBill(bill, billImpactMode, todayISO, monthStartISO, nextMonthStartISO)) return;
 
       const key = "Facturas";
       expenseByCategory.set(key, (expenseByCategory.get(key) || 0) + Math.abs(Number(bill.amount) || 0));
@@ -161,11 +196,26 @@ export default function SpendingBreakdown({
                     strokeWidth={stroke}
                     strokeLinecap="butt"
                     className="cursor-pointer transition-opacity hover:opacity-85"
-                    onMouseEnter={() => setHovered(item)}
-                    onMouseLeave={() => setHovered(null)}
-                  >
-                    <title>{`${item.name}: ${formatCurrencyCOP(item.amount)} (${item.percentage.toFixed(1)}%)`}</title>
-                  </path>
+                    onMouseEnter={(event) => {
+                      setHovered(item);
+                      setTooltip({
+                        item,
+                        x: event.clientX + 12,
+                        y: event.clientY - 12,
+                      });
+                    }}
+                    onMouseMove={(event) => {
+                      setTooltip({
+                        item,
+                        x: event.clientX + 12,
+                        y: event.clientY - 12,
+                      });
+                    }}
+                    onMouseLeave={() => {
+                      setHovered(null);
+                      setTooltip(null);
+                    }}
+                  />
                 );
               })
             )}
@@ -204,6 +254,18 @@ export default function SpendingBreakdown({
           )}
         </div>
       </div>
+
+      {tooltip ? (
+        <div
+          className="fixed z-[70] pointer-events-none px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-slate-100 shadow-xl backdrop-blur-sm"
+          style={{ left: tooltip.x, top: tooltip.y }}
+        >
+          <p className="text-xs font-bold">{tooltip.item.name}</p>
+          <p className="text-xs text-slate-600 dark:text-slate-300">
+            {formatCurrencyCOP(tooltip.item.amount)} ({tooltip.item.percentage.toFixed(1)}%)
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

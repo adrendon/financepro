@@ -7,6 +7,7 @@ import { uploadImage } from "@/utils/uploadImage";
 import ImageDropzone from "@/components/ImageDropzone";
 import { formatCurrencyCOP, formatMoneyInput, parseMoneyInput } from "@/utils/formatters";
 import { DEFAULT_PANEL_IMAGE, isValidImageUrl } from "@/utils/images";
+import { pushNotification } from "@/utils/notifications";
 
 type Investment = {
   id: number;
@@ -123,9 +124,31 @@ export default function InvestmentsManager({ initialItems }: { initialItems: Inv
     if (editing) {
       const { error } = await supabase.from("investments").update(payload).eq("id", editing.id).select("*").single();
       if (error) return;
+
+      pushNotification({
+        id: `investment-action-edit-${editing.id}-${Date.now()}`,
+        title: `Inversión actualizada: ${form.name}`,
+        message: `Monto invertido ${formatCurrencyCOP(payload.invested_amount)} y valor actual ${formatCurrencyCOP(payload.current_value)}.`,
+        time: "ahora",
+        unread: true,
+        kind: "system",
+        actionLabel: "Ver inversiones",
+        actionHref: "/inversiones",
+      });
     } else {
       const { error } = await supabase.from("investments").insert(payload);
       if (error) return;
+
+      pushNotification({
+        id: `investment-action-create-${Date.now()}`,
+        title: `Nueva inversión: ${form.name}`,
+        message: `Registrada por ${formatCurrencyCOP(payload.invested_amount)} con valor actual ${formatCurrencyCOP(payload.current_value)}.`,
+        time: "ahora",
+        unread: true,
+        kind: "system",
+        actionLabel: "Ver inversiones",
+        actionHref: "/inversiones",
+      });
     }
 
     const { data } = await supabase.from("investments").select("*").order("created_at", { ascending: false });
@@ -136,9 +159,22 @@ export default function InvestmentsManager({ initialItems }: { initialItems: Inv
 
   const remove = async (id: number) => {
     if (!confirm("¿Eliminar inversión?")) return;
+    const removed = items.find((it) => it.id === id);
     const supabase = createClient();
     const { error } = await supabase.from("investments").delete().eq("id", id);
-    if (!error) setItems((prev) => prev.filter((it) => it.id !== id));
+    if (!error) {
+      pushNotification({
+        id: `investment-action-delete-${id}-${Date.now()}`,
+        title: "Inversión eliminada",
+        message: `${removed?.name || "La inversión"} fue eliminada correctamente.`,
+        time: "ahora",
+        unread: true,
+        kind: "system",
+        actionLabel: "Ver inversiones",
+        actionHref: "/inversiones",
+      });
+      setItems((prev) => prev.filter((it) => it.id !== id));
+    }
   };
 
   const handleImageUpload = async (file: File) => {
