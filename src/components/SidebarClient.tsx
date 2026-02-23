@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import NotificationCenter from "./NotificationCenter";
 import MobileActionSheet from "./MobileActionSheet";
+import LogoutButton from "./LogoutButton";
 
 export type SidebarProfile = {
   full_name: string | null;
@@ -119,6 +120,13 @@ export function SidebarClient({ initialProfile }: { initialProfile: SidebarProfi
                 </div>
               ) : null}
             </button>
+
+              {/* Restore logout icon next to logo in desktop */}
+              {!isMobile && !collapsed && (
+                <div className="ml-auto">
+                  <LogoutButton compact />
+                </div>
+              )}
 
           </div>
         </div>
