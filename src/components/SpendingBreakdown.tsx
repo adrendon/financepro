@@ -164,8 +164,6 @@ export default function SpendingBreakdown({
   const size = 220;
   const stroke = 18;
   const radius = size / 2 - stroke / 2;
-  const circumference = 2 * Math.PI * radius;
-  const fullCircleGap = Math.min(10, Math.max(4, circumference * 0.015));
   let cursorAngle = 0;
 
   return (
@@ -199,8 +197,6 @@ export default function SpendingBreakdown({
                       fill="none"
                       stroke={item.color}
                       strokeWidth={stroke}
-                      strokeDasharray={`${Math.max(circumference - fullCircleGap, 0)} ${fullCircleGap}`}
-                      transform={`rotate(-90 ${size / 2} ${size / 2})`}
                       className="cursor-pointer transition-opacity hover:opacity-85"
                       onMouseEnter={(event) => {
                         setHovered(item);
