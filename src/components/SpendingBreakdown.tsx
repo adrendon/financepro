@@ -187,6 +187,40 @@ export default function SpendingBreakdown({
                 const end = start + sweep;
                 cursorAngle = end;
 
+                if (sweep >= 359.999) {
+                  return (
+                    <circle
+                      key={item.name}
+                      cx={size / 2}
+                      cy={size / 2}
+                      r={radius}
+                      fill="none"
+                      stroke={item.color}
+                      strokeWidth={stroke}
+                      className="cursor-pointer transition-opacity hover:opacity-85"
+                      onMouseEnter={(event) => {
+                        setHovered(item);
+                        setTooltip({
+                          item,
+                          x: event.clientX + 12,
+                          y: event.clientY - 12,
+                        });
+                      }}
+                      onMouseMove={(event) => {
+                        setTooltip({
+                          item,
+                          x: event.clientX + 12,
+                          y: event.clientY - 12,
+                        });
+                      }}
+                      onMouseLeave={() => {
+                        setHovered(null);
+                        setTooltip(null);
+                      }}
+                    />
+                  );
+                }
+
                 return (
                   <path
                     key={item.name}
