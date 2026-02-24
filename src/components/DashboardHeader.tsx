@@ -52,11 +52,11 @@ export function DashboardHeader({ rangeLabel }: DashboardHeaderProps) {
 
   return (
     <>
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-16 md:mb-8">
         <div>
           <h2 className="text-2xl font-bold">Resumen Financiero</h2>
           <p className="text-slate-500 dark:text-slate-400">
-            Bienvenido de nuevo, {displayName}. Tus finanzas se ven saludables hoy.
+            Bienvenido, {displayName}. Tus finanzas se ven saludables hoy.
           </p>
         </div>
 
