@@ -53,7 +53,7 @@ export default function MobileActionSheet({ profile }: { profile: MobileProfile 
 
   return (
     <div className="md:hidden">
-      <header className="fixed top-0 inset-x-0 z-40 h-14 border-b border-slate-800 bg-slate-950/95 backdrop-blur-sm px-4 flex items-center justify-between">
+      <header className="fixed top-0 inset-x-0 z-40 h-14 mb-14 border-b border-slate-800 bg-slate-950/95 backdrop-blur-sm px-4 flex items-center justify-between">
         <Link href="/perfil" className="flex items-center gap-2 min-w-0" aria-label="Abrir perfil">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -69,6 +69,7 @@ export default function MobileActionSheet({ profile }: { profile: MobileProfile 
         </div>
       </header>
 
+      <div className="pt-14" />
       <nav className="fixed bottom-0 inset-x-0 z-50 h-16 border-t border-slate-800 bg-slate-950 px-6 flex items-center justify-between">
         {BOTTOM_NAV.map((item, index) => {
           const Icon = item.icon;

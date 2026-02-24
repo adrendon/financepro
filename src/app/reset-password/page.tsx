@@ -98,7 +98,7 @@ function ResetPasswordContent() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
+    <main className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4 pt-14 md:pt-0">
       <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6">
         <h1 className="text-2xl font-bold mb-2">Restablecer contraseña</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
@@ -200,7 +200,7 @@ function ResetPasswordContent() {
 export default function ResetPasswordPage() {
   return (
     <Suspense fallback={
-      <main className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
+      <main className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4 pt-14 md:pt-0">
         <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6">
           <p className="text-sm text-slate-500 dark:text-slate-400">Cargando...</p>
         </div>

@@ -34,7 +34,7 @@ export default async function AppHomeView({ userId }: { userId: string | null })
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
 
-      <main className="flex-1 overflow-y-auto p-4 md:p-8 pt-18 md:pt-0">
+      <main className="flex-1 overflow-y-auto p-4 md:p-8">
         <DashboardHeader rangeLabel={dashboardRangeLabel} />
 
         <TopCards />

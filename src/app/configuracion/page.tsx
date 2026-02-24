@@ -19,7 +19,7 @@ export default async function ConfiguracionPage() {
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:px-10 py-8">
+      <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:px-10 py-8 pt-14 md:pt-0">
         <div className="max-w-4xl mx-auto w-full">
           <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white mb-6">
             Configuración
