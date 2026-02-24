@@ -81,15 +81,23 @@ export default function NotificationCenter({
     const loadDynamicNotifications = async () => {
       const supabase = createClient();
 
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user?.id) return;
+
       const [{ data: txData }, { data: billData }] = await Promise.all([
         supabase
           .from("transactions")
           .select("id, merchant, type, amount, date")
+          .eq("user_id", user.id)
           .order("date", { ascending: false })
           .limit(3),
         supabase
           .from("upcoming_bills")
           .select("id, title, amount, due_date, status")
+          .eq("user_id", user.id)
           .order("due_date", { ascending: true })
           .limit(3),
       ]);

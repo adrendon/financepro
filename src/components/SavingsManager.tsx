@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useEffect } from "react";
 import { PlusCircle, PiggyBank, Target, Download, History, HandCoins, Pencil, Tag, Trash2, Archive } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { exportToCSV } from "@/utils/export";
@@ -13,6 +14,7 @@ import { AppCategory, resolveCategoryIcon } from "@/utils/categories";
 import AppToast from "@/components/AppToast";
 import { pushNotification } from "@/utils/notifications";
 import { DEFAULT_PANEL_IMAGE, isValidImageUrl } from "@/utils/images";
+// Archived view is inlined and synced in real-time via Supabase Realtime
 
 type Goal = {
   id: number;
@@ -90,6 +92,153 @@ export default function SavingsManager({
   const [deletingGoal, setDeletingGoal] = useState(false);
   const [confirmArchiveGoalId, setConfirmArchiveGoalId] = useState<number | null>(null);
   const [archivingGoal, setArchivingGoal] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [archivedGoals, setArchivedGoals] = useState<Goal[]>([]);
+
+  // Real-time subscription: keep active and archived goals in sync across clients
+  useEffect(() => {
+    const supabase = createClient();
+    let channel: any = null;
+    let mounted = true;
+
+    const init = async () => {
+      try {
+        // seed archived list once
+        const { data: archived } = await supabase
+          .from("savings_goals")
+          .select("id, title, category, current_amount, target_amount, status, color_class, target_date, image_url")
+          .eq("status", "Archivado")
+          .order("updated_at", { ascending: false });
+        if (mounted) setArchivedGoals((archived as Goal[]) || []);
+
+        // subscribe to all changes on savings_goals and filter client-side by user_id
+        channel = supabase
+          .channel("public:savings_goals")
+          .on(
+            "postgres_changes",
+            { event: "INSERT", schema: "public", table: "savings_goals" },
+            (payload) => handleRealtime(payload)
+          )
+          .on(
+            "postgres_changes",
+            { event: "UPDATE", schema: "public", table: "savings_goals" },
+            (payload) => handleRealtime(payload)
+          )
+          .on(
+            "postgres_changes",
+            { event: "DELETE", schema: "public", table: "savings_goals" },
+            (payload) => handleRealtime(payload)
+          )
+          .subscribe();
+      } catch (e) {
+        // ignore subscription errors
+        console.error("Realtime init error", e);
+      }
+    };
+
+    init();
+
+    const safeId = (r: any) => (r && r.id ? Number(r.id) : null);
+
+    function handleRealtime(payload: any) {
+      // payload may differ between versions; normalize
+      const event = payload.event || payload.type || payload.eventType || (payload?.payload && payload.payload.type) || "UPDATE";
+      const newRec = payload.new || payload.record || (payload?.payload && payload.payload.new) || null;
+      const oldRec = payload.old || (payload?.payload && payload.payload.old) || null;
+
+      const uid = newRec?.user_id || oldRec?.user_id;
+      // if no user_id present, ignore
+      if (!uid) return;
+
+      // Only handle records for current user by comparing with existing lists
+      const existsInGoals = (id: number) => (goals || []).some((g) => Number(g.id) === Number(id));
+      const existsInArchived = (id: number) => (archivedGoals || []).some((g) => Number(g.id) === Number(id));
+
+      const addToGoals = (rec: any) => {
+        if (!rec) return;
+        const id = safeId(rec);
+        if (id == null) return;
+        if (!existsInGoals(id)) setGoals((prev) => [{ ...rec, id }, ...(prev || [])]);
+      };
+
+      const addToArchived = (rec: any) => {
+        if (!rec) return;
+        const id = safeId(rec);
+        if (id == null) return;
+        if (!existsInArchived(id)) setArchivedGoals((prev) => [{ ...rec, id }, ...(prev || [])]);
+      };
+
+      const removeFromGoals = (id: number) => setGoals((prev) => (prev || []).filter((g) => Number(g.id) !== Number(id)));
+      const removeFromArchived = (id: number) => setArchivedGoals((prev) => (prev || []).filter((g) => Number(g.id) !== Number(id)));
+
+      if (event && String(event).toUpperCase().includes("INSERT")) {
+        if (newRec.status === "Archivado") addToArchived(newRec);
+        else addToGoals(newRec);
+        return;
+      }
+
+      if (event && String(event).toUpperCase().includes("UPDATE")) {
+        const prevStatus = oldRec?.status;
+        const nextStatus = newRec?.status;
+        const id = safeId(newRec || oldRec);
+        if (prevStatus && nextStatus && prevStatus !== nextStatus) {
+          // moved between lists
+          if (nextStatus === "Archivado") {
+            removeFromGoals(id);
+            addToArchived(newRec);
+          } else if (prevStatus === "Archivado" && nextStatus !== "Archivado") {
+            removeFromArchived(id);
+            addToGoals(newRec);
+          }
+        } else {
+          // same status: update the item in place
+          if (nextStatus === "Archivado") {
+            setArchivedGoals((prev) => (prev || []).map((g) => (Number(g.id) === Number(id) ? { ...g, ...newRec } : g)));
+          } else {
+            setGoals((prev) => (prev || []).map((g) => (Number(g.id) === Number(id) ? { ...g, ...newRec } : g)));
+          }
+        }
+        return;
+      }
+
+      if (event && String(event).toUpperCase().includes("DELETE")) {
+        const id = safeId(oldRec || newRec);
+        if (id == null) return;
+        removeFromGoals(id);
+        removeFromArchived(id);
+        return;
+      }
+    }
+
+    return () => {
+      mounted = false;
+      try {
+        if (channel) supabase.removeChannel(channel);
+      } catch (e) {
+        // ignore
+      }
+    };
+  }, []);
+
+  // restore action (called from inline archived list)
+  const [restoringId, setRestoringId] = useState<number | null>(null);
+  const restoreGoal = async (id: number) => {
+    setRestoringId(id);
+    const supabase = createClient();
+    const { error } = await supabase.from("savings_goals").update({ status: "En progreso" }).eq("id", id);
+    setRestoringId(null);
+    if (error) {
+      showToast("error", `No se pudo restaurar la meta: ${error.message}`);
+      return;
+    }
+    // local optimistic update (realtime will also update other clients)
+    const restored = archivedGoals.find((g) => g.id === id);
+    if (restored) {
+      setGoals((prev) => [{ ...restored, status: "En progreso" }, ...(prev || [])]);
+      setArchivedGoals((prev) => (prev || []).filter((x) => x.id !== id));
+      showToast("success", "Meta restaurada correctamente.");
+    }
+  };
 
   const activeGoals = useMemo(
     () => goals.filter((goal) => goal.status !== "Archivado"),
@@ -399,7 +548,7 @@ export default function SavingsManager({
     pushNotification({
       id: `saving-goal-action-delete-${Date.now()}`,
       title: "Meta de ahorro eliminada",
-      message: `${goalToRemove?.title || "La meta"} fue eliminada junto con sus aportaciones.`,
+      message: `${goalToRemove?.title || "La meta"} fue eliminada junto con sus aportes.`,
       time: "ahora",
       unread: true,
       kind: "savings",
@@ -427,7 +576,12 @@ export default function SavingsManager({
       return;
     }
 
-    await reload();
+    // Optimistic local update so archived view shows immediately
+    setGoals((prev) => (prev || []).filter((g) => g.id !== confirmArchiveGoalId));
+    if (goalToArchive) {
+      const archivedCopy = { ...goalToArchive, status: "Archivado" };
+      setArchivedGoals((prev) => [archivedCopy, ...(prev || [])]);
+    }
     setConfirmArchiveGoalId(null);
     showToast("success", "Meta archivada correctamente.");
 
@@ -572,7 +726,7 @@ export default function SavingsManager({
       <ConfirmDialog
         open={Boolean(confirmDeleteGoalId)}
         title="Eliminar meta de ahorro"
-        message="También se eliminarán las aportaciones asociadas a esta meta. Esta acción no se puede deshacer."
+        message="También se eliminarán las aportes asociadas a esta meta. Esta acción no se puede deshacer."
         confirmLabel="Eliminar meta"
         loading={deletingGoal}
         loadingLabel="Eliminando..."
@@ -583,7 +737,7 @@ export default function SavingsManager({
       <ConfirmDialog
         open={Boolean(confirmArchiveGoalId)}
         title="Archivar meta de ahorro"
-        message="La meta se ocultará del panel principal, pero se conservará su historial de aportaciones."
+        message="La meta se ocultará del panel principal, pero se conservará su historial de aportes."
         confirmLabel="Archivar meta"
         intent="primary"
         loading={archivingGoal}
@@ -595,10 +749,10 @@ export default function SavingsManager({
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div className="flex flex-col gap-2">
           <h1 className="text-slate-900 dark:text-white text-3xl md:text-4xl font-black">Ahorros</h1>
-          <p className="text-slate-500 dark:text-slate-400">Visualiza metas, crea nuevas y registra aportaciones.</p>
+          <p className="text-slate-500 dark:text-slate-400">Visualiza metas, crea nuevas y registra aportes.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button onClick={() => exportToCSV(contributionRows, "historial-aportaciones.csv")} className="w-full sm:w-auto justify-center px-4 h-12 border rounded-lg font-bold flex items-center gap-2">
+          <button onClick={() => exportToCSV(contributionRows, "historial-aportes.csv")} className="w-full sm:w-auto justify-center px-4 h-12 border rounded-lg font-bold flex items-center gap-2">
             <Download className="w-4 h-4" /> Exportar historial
           </button>
           <button onClick={openCreateGoal} className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 h-12 bg-primary hover:bg-primary/90 text-white rounded-lg font-bold">
@@ -638,7 +792,16 @@ export default function SavingsManager({
 
       <div className="mt-10">
         <div className="flex items-center justify-between mb-4 gap-4">
-          <h2 className="text-2xl font-bold">Mis Metas de Ahorro</h2>
+            <div className="flex items-center gap-4">
+              <h2 className="text-2xl font-bold">Mis Metas de Ahorro</h2>
+              <button
+                type="button"
+                onClick={() => setShowArchived((s) => !s)}
+                className="text-sm px-3 py-1 rounded-md border bg-slate-50 dark:bg-slate-800"
+              >
+                {showArchived ? "Ver activas" : "Archivadas"}
+              </button>
+            </div>
           {extraGoals.length > 0 ? (
             <button
               type="button"
@@ -652,9 +815,39 @@ export default function SavingsManager({
             </button>
           ) : null}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {featuredGoals.map((goal) => renderGoalCard(goal))}
-        </div>
+          {/* If showing archived, render archived list and skip active grid */}
+          {showArchived ? (
+            <div className="space-y-4">
+              {archivedGoals.length === 0 ? (
+                <div className="p-6 bg-white dark:bg-slate-900 border rounded-xl text-center">
+                  <p className="text-slate-500">No hay metas archivadas.</p>
+                </div>
+              ) : (
+                archivedGoals.map((goal) => (
+                  <div key={goal.id} className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 border rounded-lg">
+                    <div>
+                      <h3 className="font-bold">{goal.title}</h3>
+                      <p className="text-sm text-slate-500">Categoría: {goal.category}</p>
+                      <p className="text-sm text-slate-700 dark:text-slate-200 mt-1">{formatCurrencyCOP(Number(goal.current_amount || 0))} / {formatCurrencyCOP(Number(goal.target_amount || 0))}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        disabled={restoringId === goal.id}
+                        onClick={() => restoreGoal(goal.id)}
+                        className="px-3 py-2 rounded-lg bg-emerald-600 text-white font-semibold flex items-center gap-2"
+                      >
+                        {restoringId === goal.id ? "Restaurando..." : "Restaurar"}
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {featuredGoals.map((goal) => renderGoalCard(goal))}
+            </div>
+          )}
 
         {extraGoals.length > 0 ? (
           <div
@@ -688,7 +881,7 @@ export default function SavingsManager({
         <div className="flex items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
             <History className="w-4 h-4" />
-            <h3 className="font-bold">Historial de aportaciones</h3>
+            <h3 className="font-bold">Historial de aportes</h3>
           </div>
           <Link href="/transacciones" className="text-primary text-sm font-semibold hover:underline">
             Ver todo

@@ -220,12 +220,12 @@ Para cada meta defines:
 - fecha objetivo (opcional),
 - imagen (opcional).
 
-### 7.2 Aportaciones
+### 7.2 Aportes
 
 Desde cada meta puedes registrar aportes.
 Cada aporte actualiza el avance de la meta.
 
-### 7.3 Historial de aportaciones
+### 7.3 Historial de aportes
 
 Se muestra en formato tabla, tipo transacción.
 

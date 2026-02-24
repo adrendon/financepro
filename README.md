@@ -238,7 +238,7 @@ Para promover admin:
 - CRUD de metas
 - Prioridad y plazo por meta
 - Aportes por meta
-- Historial de aportaciones
+- Historial de aportes
 
 ### Facturas
 
@@ -272,7 +272,7 @@ Para promover admin:
 
 ### Ahorros
 
-- Historial de aportaciones estilo transacción.
+- Historial de aportes estilo transacción.
 - Paginación visual: `12` inicial + botón `Cargar más` (+12).
 - `Ver todo` del historial enlaza a `/transacciones`.
 

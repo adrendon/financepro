@@ -37,7 +37,7 @@ type Movement = {
   amount: number;
 };
 
-type Range = "3m" | "6m" | "12m" | "10y" | "custom";
+type Range = "3m" | "6m" | "12m";
 
 type DonutSlice = {
   name: string;
@@ -52,17 +52,7 @@ type DonutTooltip = {
   y: number;
 };
 
-function inRange(dateStr: string, range: Range, customFrom: string, customTo: string, now: Date, yearsWindow: number) {
-  const dateValue = new Date(`${dateStr}T00:00:00`);
-
-  if (range === "3m") return dateValue >= new Date(now.getFullYear(), now.getMonth() - 2, 1);
-  if (range === "6m") return dateValue >= new Date(now.getFullYear(), now.getMonth() - 5, 1);
-  if (range === "12m") return dateValue >= new Date(now.getFullYear(), now.getMonth() - 11, 1);
-  if (range === "10y") return dateValue >= new Date(now.getFullYear() - Math.min(Math.max(yearsWindow, 1), 10), now.getMonth(), 1);
-
-  if (!customFrom || !customTo) return true;
-  return dateValue >= new Date(`${customFrom}T00:00:00`) && dateValue <= new Date(`${customTo}T23:59:59`);
-}
+// date filtering is handled by `dateWindow` below; keep this small helper if needed in future
 
 function getSegmentColor(index: number, total: number) {
   const hue = Math.round((index * (360 / Math.max(total, 1))) % 360);
@@ -85,10 +75,11 @@ function describeArc(cx: number, cy: number, radius: number, startAngle: number,
 }
 
 function lastMonths(referenceNow: Date, count: number) {
+  const MONTHS = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
   return Array.from({ length: count }, (_, idx) => {
     const d = new Date(referenceNow.getFullYear(), referenceNow.getMonth() - (count - 1 - idx), 1);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const label = d.toLocaleDateString("es-ES", { month: "short" }).replace(".", "").toUpperCase();
+    const label = MONTHS[d.getMonth()];
     return { key, label };
   });
 }
@@ -105,12 +96,10 @@ export default function ReportsManager({
   todayISO: string;
 }) {
   const [range, setRange] = useState<Range>("6m");
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo] = useState("");
-  const [yearsWindow, setYearsWindow] = useState(1);
   const [visibleRecentRows, setVisibleRecentRows] = useState(20);
   const [hoveredSlice, setHoveredSlice] = useState<DonutSlice | null>(null);
   const [tooltip, setTooltip] = useState<DonutTooltip | null>(null);
+  const [barTooltip, setBarTooltip] = useState<{ label: string; amount: number; x: number; y: number } | null>(null);
   const referenceNow = useMemo(() => new Date(`${todayISO}T00:00:00`), [todayISO]);
 
   const allMovements = useMemo<Movement[]>(() => {
@@ -149,10 +138,25 @@ export default function ReportsManager({
     return [...txRows, ...investmentRows, ...billRows];
   }, [initialTransactions, initialInvestments, initialBills]);
 
-  const filtered = useMemo(
-    () => allMovements.filter((row) => inRange(row.date, range, customFrom, customTo, referenceNow, yearsWindow)),
-    [allMovements, range, customFrom, customTo, referenceNow, yearsWindow]
-  );
+  const dateWindow = useMemo(() => {
+    const end = new Date(`${todayISO}T23:59:59`);
+    let start = new Date(end.getFullYear(), end.getMonth(), 1);
+
+    if (range === "3m") start = new Date(end.getFullYear(), end.getMonth() - 2, 1);
+    else if (range === "6m") start = new Date(end.getFullYear(), end.getMonth() - 5, 1);
+    else if (range === "12m") start = new Date(end.getFullYear(), end.getMonth() - 11, 1);
+
+    return { start, end };
+  }, [range, todayISO]);
+
+    const filtered = useMemo(() => {
+    const { start, end } = dateWindow;
+    return allMovements.filter((row) => {
+      const d = new Date(`${row.date}T00:00:00`);
+      if (Number.isNaN(d.getTime())) return false;
+      return d >= start && d <= end;
+    });
+  }, [allMovements, dateWindow]);
 
   const totalIncome = filtered
     .filter((row) => row.type === "income")
@@ -175,18 +179,23 @@ export default function ReportsManager({
 
     return map;
   }, [filtered]);
-
+  // Build monthSeries based on the computed date window (start..end)
   const monthSeries = useMemo(() => {
-    return lastMonths(referenceNow, 6).map((month) => {
-      const values = monthMap.get(month.key) || { income: 0, expense: 0 };
-      return {
-        key: month.key,
-        label: month.label,
-        income: values.income,
-        expense: values.expense,
-      };
-    });
-  }, [monthMap, referenceNow]);
+    const { start, end } = dateWindow;
+    // compute number of months between start and end inclusive
+    const months = Math.max(1, (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1);
+    const items: { key: string; label: string; income: number; expense: number }[] = [];
+
+    for (let i = 0; i < months; i++) {
+      const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = d.toLocaleDateString("es-ES", { month: "short" }).replace(".", "").toUpperCase();
+      const values = monthMap.get(key) || { income: 0, expense: 0 };
+      items.push({ key, label, income: values.income, expense: values.expense });
+    }
+
+    return items;
+  }, [monthMap, dateWindow]);
 
   const monthlyExpenses = monthSeries.map((row) => ({ label: row.label, value: row.expense }));
   const maxMonthlyExpense = Math.max(1, ...monthlyExpenses.map((row) => row.value));
@@ -252,39 +261,19 @@ export default function ReportsManager({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => exportToCSV(exportRows, "informe.csv")} className="px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2"><Download className="w-4 h-4" /> CSV</button>
-          <button onClick={() => exportToExcel(exportRows, "informe.xlsx")} className="px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2"><FileSpreadsheet className="w-4 h-4" /> Excel</button>
-          <button onClick={() => exportToPDF(exportRows, "informe.pdf", "Informe Financiero")} className="px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2"><FileText className="w-4 h-4" /> PDF</button>
+          <button type="button" onClick={() => exportToCSV(exportRows, "informe.csv")} className="px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2"><Download className="w-4 h-4" /> CSV</button>
+            <button type="button" onClick={() => exportToExcel(exportRows, "informe.xlsx")} className="px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2"><FileSpreadsheet className="w-4 h-4" /> Excel</button>
+            <button type="button" onClick={() => exportToPDF(exportRows, "informe.pdf", "Informe Financiero")} className="px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2"><FileText className="w-4 h-4" /> PDF</button>
         </div>
       </header>
 
       <div className="flex flex-wrap gap-3 mb-6 overflow-x-auto pb-1">
-        <button onClick={() => { setRange("3m"); setVisibleRecentRows(20); }} className={`h-11 px-5 rounded-xl border text-base font-bold ${range === "3m" ? "bg-primary/10 border-primary/30 text-primary" : "bg-white dark:bg-slate-900"}`}>Últimos 3 meses</button>
-        <button onClick={() => { setRange("6m"); setVisibleRecentRows(20); }} className={`h-11 px-5 rounded-xl border text-base font-bold ${range === "6m" ? "bg-primary/10 border-primary/30 text-primary" : "bg-white dark:bg-slate-900"}`}>Últimos 6 meses</button>
-        <button onClick={() => { setRange("12m"); setVisibleRecentRows(20); }} className={`h-11 px-5 rounded-xl border text-base font-bold ${range === "12m" ? "bg-primary/10 border-primary/30 text-primary" : "bg-white dark:bg-slate-900"}`}>Últimos 12 meses</button>
-        <select
-          value={yearsWindow}
-          onChange={(event) => {
-            const next = Math.min(Math.max(Number(event.target.value), 1), 10);
-            setYearsWindow(next);
-            setRange("10y");
-            setVisibleRecentRows(20);
-          }}
-          className="h-11 px-4 rounded-xl border bg-white dark:bg-slate-900 text-sm font-semibold"
-        >
-          {Array.from({ length: 10 }, (_, idx) => idx + 1).map((years) => (
-            <option key={years} value={years}>Últimos {years} {years === 1 ? "año" : "años"}</option>
-          ))}
-        </select>
-        <button onClick={() => { setRange("custom"); setVisibleRecentRows(20); }} className={`h-11 px-5 rounded-xl border text-base font-bold ${range === "custom" ? "bg-primary/10 border-primary/30 text-primary" : "bg-white dark:bg-slate-900"}`}>Personalizado</button>
+        <button type="button" onClick={() => { setRange("3m"); setVisibleRecentRows(20); }} className={`h-11 px-5 rounded-xl border text-base font-bold ${range === "3m" ? "bg-primary/10 border-primary/30 text-primary" : "bg-white dark:bg-slate-900"}`}>Últimos 3 meses</button>
+        <button type="button" onClick={() => { setRange("6m"); setVisibleRecentRows(20); }} className={`h-11 px-5 rounded-xl border text-base font-bold ${range === "6m" ? "bg-primary/10 border-primary/30 text-primary" : "bg-white dark:bg-slate-900"}`}>Últimos 6 meses</button>
+        <button type="button" onClick={() => { setRange("12m"); setVisibleRecentRows(20); }} className={`h-11 px-5 rounded-xl border text-base font-bold ${range === "12m" ? "bg-primary/10 border-primary/30 text-primary" : "bg-white dark:bg-slate-900"}`}>Últimos 12 meses</button>
       </div>
 
-      {range === "custom" ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8">
-          <input type="date" value={customFrom} onChange={(event) => { setCustomFrom(event.target.value); setVisibleRecentRows(20); }} className="px-3 py-2 rounded-lg border bg-white dark:bg-slate-900" />
-          <input type="date" value={customTo} onChange={(event) => { setCustomTo(event.target.value); setVisibleRecentRows(20); }} className="px-3 py-2 rounded-lg border bg-white dark:bg-slate-900" />
-        </div>
-      ) : null}
+      
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <section className="lg:col-span-2 bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-2xl border shadow-sm">
@@ -297,7 +286,13 @@ export default function ReportsManager({
             <div className="h-72 min-w-[420px] grid grid-cols-6 items-end gap-3 border-b border-slate-200 dark:border-slate-800 pb-6">
               {monthlyExpenses.map((row) => (
                 <div key={row.label} className="flex flex-col items-center gap-3 h-full justify-end">
-                  <div className="w-full rounded-t-md bg-primary/80" style={{ height: `${(row.value / maxMonthlyExpense) * 100}%` }}></div>
+                  <div
+                    className="w-full rounded-t-md bg-rose-500"
+                    style={{ height: `${(row.value / maxMonthlyExpense) * 100}%` }}
+                    onMouseEnter={(e) => setBarTooltip({ label: `Gastos ${row.label}`, amount: row.value, x: e.clientX + 12, y: e.clientY - 12 })}
+                    onMouseMove={(e) => setBarTooltip((prev) => prev ? { ...prev, x: e.clientX + 12, y: e.clientY - 12 } : { label: `Gastos ${row.label}`, amount: row.value, x: e.clientX + 12, y: e.clientY - 12 })}
+                    onMouseLeave={() => setBarTooltip(null)}
+                  />
                   <span className="text-sm font-semibold text-slate-500">{row.label}</span>
                 </div>
               ))}
@@ -457,15 +452,25 @@ export default function ReportsManager({
         ) : null}
       </section>
 
-      {tooltip ? (
+      {(tooltip || barTooltip) ? (
         <div
           className="fixed z-[70] pointer-events-none px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-slate-100 shadow-xl backdrop-blur-sm"
-          style={{ left: tooltip.x, top: tooltip.y }}
+          style={{ left: (tooltip || barTooltip)!.x, top: (tooltip || barTooltip)!.y }}
         >
-          <p className="text-xs font-bold">{tooltip.slice.name}</p>
-          <p className="text-xs text-slate-600 dark:text-slate-300">
-            {formatCurrencyCOP(tooltip.slice.amount)} ({tooltip.slice.percentage.toFixed(1)}%)
-          </p>
+          {tooltip ? (
+            <>
+              <p className="text-xs font-bold">{tooltip.slice.name}</p>
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                {formatCurrencyCOP(tooltip.slice.amount)} ({tooltip.slice.percentage.toFixed(1)}%)
+              </p>
+            </>
+          ) : null}
+          {barTooltip ? (
+            <>
+              <p className="text-xs font-bold">{barTooltip.label}</p>
+              <p className="text-xs text-slate-600 dark:text-slate-300">{formatCurrencyCOP(barTooltip.amount)}</p>
+            </>
+          ) : null}
         </div>
       ) : null}
 

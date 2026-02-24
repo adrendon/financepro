@@ -3,8 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppNotification } from "@/types/notifications";
 
-const STORAGE_KEY = "financepro.notifications.v1";
-const EVENT_NAME = "financepro-notifications-updated";
+import { readNotifications, writeNotifications, EVENT_NAME } from "@/utils/notifications";
 const STORAGE_SCHEMA_KEY = "financepro.notifications.schema";
 const STORAGE_SCHEMA_VERSION = "2";
 const LEGACY_SEEDED_IDS = new Set([
@@ -72,23 +71,14 @@ function sameNotifications(a: AppNotification[], b: AppNotification[]) {
   return true;
 }
 
-function readStorage(): AppNotification[] {
+async function readStorageAsync(): Promise<AppNotification[]> {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as AppNotification[];
-    return Array.isArray(parsed) ? sanitizeNotifications(parsed) : [];
+    const items = await readNotifications();
+    return sanitizeNotifications(items || []);
   } catch {
     return [];
   }
-}
-
-function writeStorage(items: AppNotification[]) {
-  if (typeof window === "undefined") return;
-  const sanitized = sanitizeNotifications(items);
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
-  window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: sanitized }));
 }
 
 export function useSharedNotifications(initialItems: AppNotification[]) {
@@ -100,35 +90,41 @@ export function useSharedNotifications(initialItems: AppNotification[]) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const schemaVersion = window.localStorage.getItem(STORAGE_SCHEMA_KEY);
-    if (schemaVersion !== STORAGE_SCHEMA_VERSION) {
-      window.localStorage.removeItem(STORAGE_KEY);
-      window.localStorage.setItem(STORAGE_SCHEMA_KEY, STORAGE_SCHEMA_VERSION);
-      writeStorage(sanitizedInitial);
-      setItems((prev) => (sameNotifications(prev, sanitizedInitial) ? prev : sanitizedInitial));
-      return;
-    }
+    (async () => {
+      const schemaVersion = window.localStorage.getItem(STORAGE_SCHEMA_KEY);
+      if (schemaVersion !== STORAGE_SCHEMA_VERSION) {
+        try {
+          window.localStorage.removeItem("financepro.notifications.v1");
+        } catch {}
+        window.localStorage.setItem(STORAGE_SCHEMA_KEY, STORAGE_SCHEMA_VERSION);
+        await writeNotifications(sanitizedInitial);
+        setItems((prev) => (sameNotifications(prev, sanitizedInitial) ? prev : sanitizedInitial));
+        return;
+      }
 
-    const stored = readStorage();
-    if (stored.length === 0) {
-      writeStorage(sanitizedInitial);
-      setItems((prev) => (sameNotifications(prev, sanitizedInitial) ? prev : sanitizedInitial));
-      return;
-    }
+      const stored = await readStorageAsync();
+      if (stored.length === 0) {
+        await writeNotifications(sanitizedInitial);
+        setItems((prev) => (sameNotifications(prev, sanitizedInitial) ? prev : sanitizedInitial));
+        return;
+      }
 
-    const merged = mergeById(stored, sanitizedInitial);
-    setItems((prev) => (sameNotifications(prev, merged) ? prev : merged));
+      const merged = mergeById(stored, sanitizedInitial);
+      setItems((prev) => (sameNotifications(prev, merged) ? prev : merged));
+    })();
   }, [initialSignature, sanitizedInitial]);
 
   const persistAsync = useCallback((next: AppNotification[]) => {
-    queueMicrotask(() => {
-      writeStorage(next);
-    });
+    void (async () => {
+      try {
+        await writeNotifications(next);
+      } catch {}
+    })();
   }, []);
 
   useEffect(() => {
-    const onStorage = () => {
-      const next = readStorage();
+    const onStorage = async () => {
+      const next = await readStorageAsync();
       if (next.length > 0) {
         setItems((prev) => (sameNotifications(prev, next) ? prev : next));
       }
