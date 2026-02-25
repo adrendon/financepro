@@ -1,3 +1,5 @@
+"use client";
+
 let _nextTempId = -1;
 
 const MONTH_SHORT_ES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
@@ -9,8 +11,6 @@ function formatDate(d: Date) {
 function formatDateTime(d: Date) {
   return `${formatDate(d)} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
-
-"use client";
 
 import { useMemo, useState } from "react";
 import {

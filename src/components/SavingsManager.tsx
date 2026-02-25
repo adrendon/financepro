@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useEffect } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { PlusCircle, PiggyBank, Target, Download, History, HandCoins, Pencil, Tag, Trash2, Archive } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { exportToCSV } from "@/utils/export";
@@ -95,6 +94,13 @@ export default function SavingsManager({
   const [showArchived, setShowArchived] = useState(false);
   const [archivedGoals, setArchivedGoals] = useState<Goal[]>([]);
 
+  const idPrefixRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (idPrefixRef.current === null) {
+      idPrefixRef.current = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    }
+  }, []);
+
   // Real-time subscription: keep active and archived goals in sync across clients
   useEffect(() => {
     const supabase = createClient();
@@ -183,6 +189,7 @@ export default function SavingsManager({
         const id = safeId(newRec || oldRec);
         if (prevStatus && nextStatus && prevStatus !== nextStatus) {
           // moved between lists
+          if (id == null) return;
           if (nextStatus === "Archivado") {
             removeFromGoals(id);
             addToArchived(newRec);
@@ -192,6 +199,7 @@ export default function SavingsManager({
           }
         } else {
           // same status: update the item in place
+          if (id == null) return;
           if (nextStatus === "Archivado") {
             setArchivedGoals((prev) => (prev || []).map((g) => (Number(g.id) === Number(id) ? { ...g, ...newRec } : g)));
           } else {
@@ -274,12 +282,6 @@ export default function SavingsManager({
 
   const performance = useMemo(() => {
     const reference = new Date(`${todayISO}T00:00:00`);
-    const idPrefixRef = useRef<string | null>(null);
-    useEffect(() => {
-      if (idPrefixRef.current === null) {
-        idPrefixRef.current = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-      }
-    }, []);
     const currentMonth = reference.getMonth();
     const currentYear = reference.getFullYear();
 
@@ -409,7 +411,7 @@ export default function SavingsManager({
       : await supabase.from("savings_goals").insert(payload);
     if (!error) {
       pushNotification({
-        id: `saving-goal-action-${editingGoal ? "edit" : "create"}-${idPrefixRef.current}`,
+        id: `saving-goal-action-${editingGoal ? "edit" : "create"}-${idPrefixRef.current ?? ""}`,
         title: editingGoal ? `Meta actualizada: ${payload.title}` : `Nueva meta de ahorro: ${payload.title}`,
         message: `Objetivo ${formatCurrencyCOP(parsedTargetAmount)} (${payload.status.toLowerCase()}).`,
         time: "ahora",
@@ -508,7 +510,7 @@ export default function SavingsManager({
     showToast("success", "Aportación registrada correctamente.");
 
     pushNotification({
-      id: `${idPrefixRef.current}-${selectedGoal.id}`,
+      id: `${idPrefixRef.current ?? ""}-${selectedGoal.id}`,
       title: `Aportación a meta: ${selectedGoal.title}`,
       message: `Registraste un aporte de ${formatCurrencyCOP(amount)} para avanzar tu objetivo.`,
       time: "ahora",
@@ -554,7 +556,7 @@ export default function SavingsManager({
     showToast("success", "Meta eliminada correctamente.");
 
     pushNotification({
-      id: `saving-goal-action-delete-${idPrefixRef.current}`,
+      id: `saving-goal-action-delete-${idPrefixRef.current ?? ""}`,
       title: "Meta de ahorro eliminada",
       message: `${goalToRemove?.title || "La meta"} fue eliminada junto con sus aportes.`,
       time: "ahora",
@@ -594,7 +596,7 @@ export default function SavingsManager({
     showToast("success", "Meta archivada correctamente.");
 
     pushNotification({
-      id: `saving-goal-action-archive-${idPrefixRef.current}`,
+      id: `saving-goal-action-archive-${idPrefixRef.current ?? ""}`,
       title: "Meta de ahorro archivada",
       message: `${goalToArchive?.title || "La meta"} fue archivada sin eliminar su historial.`,
       time: "ahora",
