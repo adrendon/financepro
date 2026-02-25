@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+const MONTH_SHORT_ES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
 import Link from "next/link";
 import { Download, FileSpreadsheet, FileText, MoreHorizontal } from "lucide-react";
 import { exportToCSV, exportToExcel, exportToPDF } from "@/utils/export";
@@ -61,17 +62,17 @@ function getSegmentColor(index: number, total: number) {
 
 function polarToCartesian(cx: number, cy: number, radius: number, angleDeg: number) {
   const angleRad = ((angleDeg - 90) * Math.PI) / 180;
-  return {
-    x: cx + radius * Math.cos(angleRad),
-    y: cy + radius * Math.sin(angleRad),
-  };
+  const x = cx + radius * Math.cos(angleRad);
+  const y = cy + radius * Math.sin(angleRad);
+  const round = (v: number) => Number(v.toFixed(3));
+  return { x: round(x), y: round(y) };
 }
 
 function describeArc(cx: number, cy: number, radius: number, startAngle: number, endAngle: number) {
   const start = polarToCartesian(cx, cy, radius, endAngle);
   const end = polarToCartesian(cx, cy, radius, startAngle);
   const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
-  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`;
+  return `M ${start.x} ${start.y} A ${Number(radius.toFixed(3))} ${Number(radius.toFixed(3))} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`;
 }
 
 function lastMonths(referenceNow: Date, count: number) {
@@ -189,7 +190,7 @@ export default function ReportsManager({
     for (let i = 0; i < months; i++) {
       const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const label = d.toLocaleDateString("es-ES", { month: "short" }).replace(".", "").toUpperCase();
+      const label = MONTH_SHORT_ES[d.getMonth()];
       const values = monthMap.get(key) || { income: 0, expense: 0 };
       items.push({ key, label, income: values.income, expense: values.expense });
     }
@@ -230,7 +231,7 @@ export default function ReportsManager({
       const isRecent = Math.ceil((referenceNow.getTime() - dateValue.getTime()) / (24 * 60 * 60 * 1000)) <= 7;
       const status = row.type === "income" ? "Completado" : isRecent ? "Pendiente" : "Completado";
       return {
-        dateLabel: dateValue.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" }),
+        dateLabel: `${String(dateValue.getDate()).padStart(2, "0")} ${MONTH_SHORT_ES[dateValue.getMonth()]} ${dateValue.getFullYear()}`,
         category: row.category,
         description: row.description,
         amount: row.amount,
@@ -240,7 +241,7 @@ export default function ReportsManager({
     });
 
   const exportRows = filtered.map((row) => ({
-    Fecha: new Date(`${row.date}T00:00:00`).toLocaleDateString("es-ES"),
+    Fecha: (() => { const d = new Date(`${row.date}T00:00:00`); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}` })(),
     Tipo: row.type === "income" ? "Ingreso" : "Gasto",
     Categoria: row.category,
     Descripcion: row.description,

@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { formatCurrencyCOP } from "@/utils/formatters";
 
+const MONTH_SHORT_ES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+
 // Función auxiliar para asignar iconos basados en el comercio o categoría
 const getIcon = (merchant: string, category: string) => {
   const text = `${merchant} ${category}`.toLowerCase();
@@ -156,11 +158,7 @@ export default async function TransactionTable() {
 
                 // Asegurar formato de fecha correcto evitando problemas de zona horaria
                 const dateObj = new Date(tx.date + "T00:00:00");
-                const formattedDate = dateObj.toLocaleDateString("es-ES", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                });
+                const formattedDate = `${String(dateObj.getDate()).padStart(2,'0')} ${MONTH_SHORT_ES[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
 
                 return (
                   <tr

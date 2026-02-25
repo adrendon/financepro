@@ -54,10 +54,9 @@ export default async function UpcomingBills() {
             const isPaid = bill.status === "Pagado";
             const isOverdue = !isPaid && diffDays < 0;
             const isDueToday = !isPaid && diffDays === 0;
-            const month = dateObj
-              .toLocaleDateString("es-ES", { month: "short" })
-              .replace(".", "");
-            const day = dateObj.toLocaleDateString("es-ES", { day: "2-digit" });
+            const MONTHS = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+            const month = MONTHS[dateObj.getMonth()];
+            const day = String(dateObj.getDate()).padStart(2, "0");
             const amountFormatted = formatCurrencyCOP(Number(bill.amount));
 
             const statusLabel = isPaid

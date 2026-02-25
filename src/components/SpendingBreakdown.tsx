@@ -72,17 +72,18 @@ function getSegmentColor(index: number, total: number) {
 
 function polarToCartesian(cx: number, cy: number, radius: number, angleDeg: number) {
   const angleRad = ((angleDeg - 90) * Math.PI) / 180;
-  return {
-    x: cx + radius * Math.cos(angleRad),
-    y: cy + radius * Math.sin(angleRad),
-  };
+  const x = cx + radius * Math.cos(angleRad);
+  const y = cy + radius * Math.sin(angleRad);
+  // Round coordinates to avoid tiny floating-point differences between SSR and client
+  const round = (v: number) => Number(v.toFixed(3));
+  return { x: round(x), y: round(y) };
 }
 
 function describeArc(cx: number, cy: number, radius: number, startAngle: number, endAngle: number) {
   const start = polarToCartesian(cx, cy, radius, endAngle);
   const end = polarToCartesian(cx, cy, radius, startAngle);
   const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
-  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`;
+  return `M ${start.x} ${start.y} A ${Number(radius.toFixed(3))} ${Number(radius.toFixed(3))} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`;
 }
 
 export default function SpendingBreakdown({

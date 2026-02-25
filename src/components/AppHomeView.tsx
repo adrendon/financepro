@@ -21,14 +21,8 @@ export default async function AppHomeView({ userId }: { userId: string | null })
     supabase.from("investments").select("name, investment_type, invested_amount, started_at, created_at"),
     supabase.from("upcoming_bills").select("title, amount, due_date, status"),
   ]);
-  const dashboardRangeLabel = `${startOfMonth.toLocaleDateString("es-ES", {
-    day: "2-digit",
-    month: "short",
-  })} - ${today.toLocaleDateString("es-ES", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  })}`;
+  const MONTH_SHORT_ES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+  const dashboardRangeLabel = `${String(startOfMonth.getDate()).padStart(2,'0')} ${MONTH_SHORT_ES[startOfMonth.getMonth()]} - ${String(today.getDate()).padStart(2,'0')} ${MONTH_SHORT_ES[today.getMonth()]} ${today.getFullYear()}`;
 
   return (
     <div className="flex h-screen overflow-hidden">

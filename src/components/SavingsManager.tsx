@@ -274,6 +274,12 @@ export default function SavingsManager({
 
   const performance = useMemo(() => {
     const reference = new Date(`${todayISO}T00:00:00`);
+    const idPrefixRef = useRef<string | null>(null);
+    useEffect(() => {
+      if (idPrefixRef.current === null) {
+        idPrefixRef.current = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      }
+    }, []);
     const currentMonth = reference.getMonth();
     const currentYear = reference.getFullYear();
 
@@ -354,8 +360,10 @@ export default function SavingsManager({
     .sort((a, b) => b.contribution_date.localeCompare(a.contribution_date))
     .map((c) => {
       const goal = goals.find((g) => g.id === c.savings_goal_id);
+      const d = new Date(`${c.contribution_date}T00:00:00`);
+      const Fecha = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
       return {
-        Fecha: new Date(`${c.contribution_date}T00:00:00`).toLocaleDateString("es-ES"),
+        Fecha,
         Meta: goal?.title || "Meta",
         Monto: Math.round(Number(c.amount)),
         Nota: c.note || "",
@@ -401,7 +409,7 @@ export default function SavingsManager({
       : await supabase.from("savings_goals").insert(payload);
     if (!error) {
       pushNotification({
-        id: `saving-goal-action-${editingGoal ? "edit" : "create"}-${Date.now()}`,
+        id: `saving-goal-action-${editingGoal ? "edit" : "create"}-${idPrefixRef.current}`,
         title: editingGoal ? `Meta actualizada: ${payload.title}` : `Nueva meta de ahorro: ${payload.title}`,
         message: `Objetivo ${formatCurrencyCOP(parsedTargetAmount)} (${payload.status.toLowerCase()}).`,
         time: "ahora",
@@ -500,7 +508,7 @@ export default function SavingsManager({
     showToast("success", "Aportación registrada correctamente.");
 
     pushNotification({
-      id: `saving-${Date.now()}-${selectedGoal.id}`,
+      id: `${idPrefixRef.current}-${selectedGoal.id}`,
       title: `Aportación a meta: ${selectedGoal.title}`,
       message: `Registraste un aporte de ${formatCurrencyCOP(amount)} para avanzar tu objetivo.`,
       time: "ahora",
@@ -546,7 +554,7 @@ export default function SavingsManager({
     showToast("success", "Meta eliminada correctamente.");
 
     pushNotification({
-      id: `saving-goal-action-delete-${Date.now()}`,
+      id: `saving-goal-action-delete-${idPrefixRef.current}`,
       title: "Meta de ahorro eliminada",
       message: `${goalToRemove?.title || "La meta"} fue eliminada junto con sus aportes.`,
       time: "ahora",
@@ -586,7 +594,7 @@ export default function SavingsManager({
     showToast("success", "Meta archivada correctamente.");
 
     pushNotification({
-      id: `saving-goal-action-archive-${Date.now()}`,
+      id: `saving-goal-action-archive-${idPrefixRef.current}`,
       title: "Meta de ahorro archivada",
       message: `${goalToArchive?.title || "La meta"} fue archivada sin eliminar su historial.`,
       time: "ahora",

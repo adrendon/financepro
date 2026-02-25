@@ -1,3 +1,15 @@
+let _nextTempId = -1;
+
+const MONTH_SHORT_ES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+
+function formatDate(d: Date) {
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
+function formatDateTime(d: Date) {
+  return `${formatDate(d)} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
 "use client";
 
 import { useMemo, useState } from "react";
@@ -119,7 +131,7 @@ const getHistoryDetailLabel = (detail: string) => {
 };
 
 function makeTempId() {
-  return -Math.floor(Date.now() + Math.random() * 1000);
+  return _nextTempId--;
 }
 
 const dateMatchesPeriod = (dateStr: string, period: Period, now: Date) => {
@@ -284,14 +296,17 @@ export default function TransactionsManager({
     return { totalIncome, totalExpense, net: totalIncome - totalExpense };
   }, [filtered]);
 
-  const exportRows = filtered.map((tx) => ({
-    ID: tx.id,
-    Fecha: new Date(`${tx.date}T00:00:00`).toLocaleDateString("es-ES"),
-    Tipo: tx.type === "income" ? "Ingreso" : "Gasto",
-    Comercio: tx.merchant,
-    Categoria: tx.category,
-    Monto: Math.round(Number(tx.amount)),
-  }));
+  const exportRows = filtered.map((tx) => {
+    const d = new Date(`${tx.date}T00:00:00`);
+    return {
+      ID: tx.id,
+      Fecha: formatDate(d),
+      Tipo: tx.type === "income" ? "Ingreso" : "Gasto",
+      Comercio: tx.merchant,
+      Categoria: tx.category,
+      Monto: Math.round(Number(tx.amount)),
+    };
+  });
 
   const inferByMerchant = (merchant: string) => {
     const normalized = merchant.toLowerCase();
@@ -329,7 +344,7 @@ export default function TransactionsManager({
       showToast("error", `No se pudo eliminar: ${error.message}`);
     } else {
       pushNotification({
-        id: `tx-action-delete-${Date.now()}`,
+        id: `tx-action-delete-${makeTempId()}`,
         title: ids.length === 1 ? "Transacción eliminada" : "Transacciones eliminadas",
         message:
           ids.length === 1
@@ -462,7 +477,7 @@ export default function TransactionsManager({
 
     setTransactions((prev) => prev.map((tx) => (selectedIds.includes(tx.id) ? { ...tx, ...payload } : tx)));
     pushNotification({
-      id: `tx-action-bulk-update-${Date.now()}`,
+      id: `tx-action-bulk-update-${makeTempId()}`,
       title: "Edición masiva aplicada",
       message: `Se actualizaron ${selectedIds.length} transacciones.`,
       time: "ahora",
@@ -671,9 +686,9 @@ export default function TransactionsManager({
     const inserted = data as Tx;
     setTransactions((prev) => [inserted, ...prev].sort((a, b) => b.date.localeCompare(a.date)));
     pushNotification({
-      id: `tx-action-recurring-${inserted.id}-${Date.now()}`,
+      id: `tx-action-recurring-${inserted.id}-${makeTempId()}`,
       title: `Transacción recurrente: ${template.name}`,
-      message: `${template.type === "income" ? "Ingreso" : "Gasto"} por ${formatCurrencyCOP(Number(template.amount) || 0)} generado para ${new Date(`${date}T00:00:00`).toLocaleDateString("es-CO")}.`,
+      message: `${template.type === "income" ? "Ingreso" : "Gasto"} por ${formatCurrencyCOP(Number(template.amount) || 0)} generado para ${formatDate(new Date(`${date}T00:00:00`))}.`,
       time: "ahora",
       unread: true,
       kind: "system",
@@ -973,7 +988,7 @@ export default function TransactionsManager({
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm font-medium text-slate-600 dark:text-slate-300">
-                        {new Date(`${tx.date}T00:00:00`).toLocaleDateString("es-ES")}
+                        {formatDate(new Date(`${tx.date}T00:00:00`))}
                       </td>
                       <td className={`px-6 py-4 text-right font-black ${isIncome ? "text-emerald-600" : "text-rose-600"}`}>
                         {isIncome ? "+" : "-"}{formatCurrencyCOP(Math.abs(Number(tx.amount) || 0))}
@@ -1063,7 +1078,7 @@ export default function TransactionsManager({
               ) : (
                 historyLog.slice(0, 20).map((item) => (
                   <tr key={item.id} className="border-b border-slate-100 dark:border-slate-800">
-                    <td className="py-2 pr-3">{new Date(item.at).toLocaleString("es-ES")}</td>
+                    <td className="py-2 pr-3">{formatDateTime(new Date(item.at))}</td>
                     <td className="py-2 pr-3 font-semibold">{getHistoryActionLabel(item.action)}</td>
                     <td className="py-2">{getHistoryDetailLabel(item.detail)}</td>
                   </tr>
@@ -1087,7 +1102,7 @@ export default function TransactionsManager({
           if (savedTx) {
             if (mode === "create") {
               pushNotification({
-                id: `tx-action-create-${savedTx.id}-${Date.now()}`,
+                id: `tx-action-create-${savedTx.id}-${makeTempId()}`,
                 title: "Transacción creada",
                 message: `${savedTx.merchant}: ${savedTx.type === "income" ? "ingreso" : "gasto"} por ${formatCurrencyCOP(Number(savedTx.amount) || 0)}.`,
                 time: "ahora",
@@ -1104,7 +1119,7 @@ export default function TransactionsManager({
               });
             } else {
               pushNotification({
-                id: `tx-action-edit-${savedTx.id}-${Date.now()}`,
+                id: `tx-action-edit-${savedTx.id}-${makeTempId()}`,
                 title: "Transacción editada",
                 message: `${savedTx.merchant}: ${savedTx.type === "income" ? "ingreso" : "gasto"} actualizado a ${formatCurrencyCOP(Number(savedTx.amount) || 0)}.`,
                 time: "ahora",
