@@ -394,8 +394,20 @@ export default function ReportsManager({
             {monthSeries.map((row) => (
               <div key={row.key} className="flex flex-col items-center gap-3 h-full justify-end">
                 <div className="w-full h-full flex items-end gap-1">
-                  <div className="w-1/2 bg-primary rounded-t-md" style={{ height: `${(row.income / maxComparisonValue) * 100}%` }}></div>
-                  <div className="w-1/2 bg-rose-500 rounded-t-md" style={{ height: `${(row.expense / maxComparisonValue) * 100}%` }}></div>
+                  <div
+                    className="w-1/2 bg-primary rounded-t-md"
+                    style={{ height: `${(row.income / maxComparisonValue) * 100}%` }}
+                    onMouseEnter={(e) => setBarTooltip({ label: `Ingresos ${row.label}`, amount: row.income, x: e.clientX + 12, y: e.clientY - 12 })}
+                    onMouseMove={(e) => setBarTooltip((prev) => prev ? { ...prev, x: e.clientX + 12, y: e.clientY - 12 } : { label: `Ingresos ${row.label}`, amount: row.income, x: e.clientX + 12, y: e.clientY - 12 })}
+                    onMouseLeave={() => setBarTooltip(null)}
+                  />
+                  <div
+                    className="w-1/2 bg-rose-500 rounded-t-md"
+                    style={{ height: `${(row.expense / maxComparisonValue) * 100}%` }}
+                    onMouseEnter={(e) => setBarTooltip({ label: `Gastos ${row.label}`, amount: row.expense, x: e.clientX + 12, y: e.clientY - 12 })}
+                    onMouseMove={(e) => setBarTooltip((prev) => prev ? { ...prev, x: e.clientX + 12, y: e.clientY - 12 } : { label: `Gastos ${row.label}`, amount: row.expense, x: e.clientX + 12, y: e.clientY - 12 })}
+                    onMouseLeave={() => setBarTooltip(null)}
+                  />
                 </div>
                 <span className="text-sm font-semibold text-slate-500">{row.label}</span>
               </div>
