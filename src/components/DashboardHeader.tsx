@@ -1,63 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Calendar, Plus } from "lucide-react";
 import NewTransactionModal from "./NewTransactionModal";
-import { createClient } from "@/utils/supabase/client";
 import { AppCategory } from "@/utils/categories";
 
 type DashboardHeaderProps = {
   rangeLabel: string;
+  displayName: string;
+  categories: AppCategory[];
 };
 
-export function DashboardHeader({ rangeLabel }: DashboardHeaderProps) {
+export function DashboardHeader({ rangeLabel, displayName, categories }: DashboardHeaderProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [displayName, setDisplayName] = useState("Usuario");
-  const [categories, setCategories] = useState<AppCategory[]>([]);
-
-  useEffect(() => {
-    const loadName = async () => {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      const [profileResult, categoriesResult] = await Promise.all([
-        user?.id
-          ? supabase.from("profiles").select("full_name, email").eq("id", user.id).maybeSingle()
-          : Promise.resolve({ data: null }),
-        supabase
-          .from("categories")
-          .select("id, name, icon, applies_to")
-          .in("applies_to", ["transaction", "bill", "budget", "saving"])
-          .order("name", { ascending: true }),
-      ]);
-
-      const profile = profileResult.data;
-      const categoriesData = categoriesResult.data;
-
-      const fullName = profile?.full_name?.trim();
-      if (fullName) {
-        setDisplayName(fullName.split(" ")[0] || fullName);
-      } else {
-        const fallback = profile?.email?.split("@")[0] || user?.email?.split("@")[0];
-        if (fallback) setDisplayName(fallback);
-      }
-
-      setCategories((categoriesData as AppCategory[]) || []);
-    };
-
-    loadName();
-  }, []);
 
   return (
     <>
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-16 md:mb-8">
         <div>
           <h2 className="text-2xl font-bold">Resumen Financiero</h2>
-          <p className="text-slate-500 dark:text-slate-400">
-            Bienvenido, {displayName}. Tus finanzas se ven saludables hoy.
-          </p>
+          <p className="text-slate-500 dark:text-slate-400">Bienvenido, {displayName || "Usuario"}. Tus finanzas se ven saludables hoy.</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -76,11 +38,7 @@ export function DashboardHeader({ rangeLabel }: DashboardHeaderProps) {
         </div>
       </header>
 
-      <NewTransactionModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        categories={categories}
-      />
+      <NewTransactionModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} categories={categories} />
     </>
   );
 }
